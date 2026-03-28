@@ -2,6 +2,13 @@ const express = require("express");
 const cors = require("cors");
 const envConfig = require("./config/env.config");
 
+/**
+ * 	Routes Requires
+ * - auth routes
+ */
+const authRouter = require("./routes/auth.route");
+
+// Create an Express application
 const app = express();
 
 const allowedOrigins = [
@@ -9,7 +16,6 @@ const allowedOrigins = [
 	"http://localhost:3001",
 	"http://localhost:5000",
 ];
-
 
 // CORS configuration
 app.use(
@@ -22,12 +28,17 @@ app.use(
 );
 app.use(express.json());
 
-
 /**
  * Basic route to check if the server is running.
  */
 app.get("/", (req, res) => {
 	res.send("The SBL Server is Running...");
 });
+
+/**
+ * 	Routes Use
+ * - auth routes
+ */
+app.use("/api/auth", authRouter);
 
 module.exports = app;
