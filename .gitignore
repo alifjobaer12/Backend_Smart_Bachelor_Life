@@ -38,3 +38,7 @@ firebase-service-account.json
 
 # Image uploads
 uploads/
+
+# Test files
+test
+__tests__

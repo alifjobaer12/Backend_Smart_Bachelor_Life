@@ -41,12 +41,14 @@ const userSchema = new mongoose.Schema(
 				values: ["MANAGER", "USER"],
 				message: "Role must be either 'MANAGER' or 'USER'",
 			},
+			select: false,
 			default: "USER",
 		},
 		provider: {
 			type: String,
 			trim: true,
-			default: "password",
+			select: false,
+			default: "PASSWORD",
 		},
 		emailVerified: {
 			type: Boolean,
