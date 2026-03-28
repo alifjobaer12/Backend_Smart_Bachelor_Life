@@ -1,0 +1,67 @@
+const mongoose = require("mongoose");
+
+// Firebase Admin handles authentication; this model stores app-level user data.
+const userSchema = new mongoose.Schema(
+	{
+		firebaseUid: {
+			type: String,
+			required: [true, "firebaseUid is required for creating a user"],
+			unique: [
+				true,
+				"firebaseUid already exists, please use a different firebaseUid",
+			],
+			index: true,
+			trim: true,
+		},
+		email: {
+			type: String,
+			required: [true, "email is required for creating a user"],
+			unique: [
+				true,
+				"Email already exists, please use a different email",
+			],
+			index: true,
+			trim: true,
+			lowercase: true,
+			match: [/\S+@\S+\.\S+/, "Please use a valid email address"],
+		},
+		displayName: {
+			type: String,
+			trim: true,
+			default: "",
+		},
+		photoURL: {
+			type: String,
+			trim: true,
+			default: "",
+		},
+		role: {
+			type: String,
+			enum: {
+				values: ["MANAGER", "USER"],
+				message: "Role must be either 'MANAGER' or 'USER'",
+			},
+			default: "USER",
+		},
+		provider: {
+			type: String,
+			trim: true,
+			default: "password",
+		},
+		emailVerified: {
+			type: Boolean,
+			default: false,
+		},
+		lastLoginAt: {
+			type: Date,
+			default: null,
+		},
+	},
+	{
+		timestamps: true,
+	},
+);
+
+const userModel = mongoose.model("user", userSchema);
+
+module.exports = userModel;
