@@ -31,8 +31,11 @@ app.use(express.json());
 /**
  * Basic route to check if the server is running.
  */
-app.get("/", (req, res) => {
-	res.send("The SBL Server is Running...");
+app.get("/health", (req, res) => {
+	res.status(200).json({
+		success: true,
+		message: "OK",
+	});
 });
 
 /**

@@ -2,6 +2,8 @@ const express = require("express");
 
 const authController = require("../controllers/auth.controller");
 
+const authMiddleware = require("../middlewares/auth.middleware");
+
 const authRouter = express.Router();
 
 /**
@@ -11,5 +13,26 @@ const authRouter = express.Router();
  */
 authRouter.post("/register", authController.userRegisterController);
 
+/**
+ * - POST /api/auth/test-login
+ * - test login route to verify authentication middleware
+ * - protected route, requires valid Firebase ID token
+ */
+authRouter.post(
+	"/test-login",
+	authMiddleware.authUserMiddleware,
+	authController.testLoginController,
+);
+
+/**
+ * - POST /api/auth/login
+ * - user login
+ * - protected route, requires valid Firebase ID token
+ */
+authRouter.post(
+	"/login",
+	authMiddleware.authUserMiddleware,
+	authController.userLoginController,
+);
 
 module.exports = authRouter;
