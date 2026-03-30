@@ -17,12 +17,15 @@ authRouter.post("/register", authController.userRegisterController);
  * - POST /api/auth/test-login
  * - test login route to verify authentication middleware
  * - protected route, requires valid Firebase ID token
+ * - only enabled in non-production environments
  */
-authRouter.post(
-	"/test-login",
-	authMiddleware.authUserMiddleware,
-	authController.testLoginController,
-);
+if (process.env.NODE_ENV !== "production") {
+	authRouter.post(
+		"/test-login",
+		authMiddleware.authUserMiddleware,
+		authController.testLoginController,
+	);
+}
 
 /**
  * - POST /api/auth/login

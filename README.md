@@ -4,10 +4,11 @@ Backend server for the Smart Bachelor Life project, built with Node.js, Express,
 
 ## Tech Stack
 
-- Node.js
+- Node.js (>=20)
 - Express
 - MongoDB + Mongoose
 - Redis
+- Firebase Admin SDK
 - dotenv
 - CORS
 
@@ -48,6 +49,9 @@ PORT=3000
 MONGO_URI=your_mongodb_connection_string
 REDIS_URL=your_redis_connection_string
 CLIENT_URL=http://localhost:3000
+FIREBASE_PROJECT_ID=your_firebase_project_id
+FIREBASE_CLIENT_EMAIL=your_firebase_client_email
+FIREBASE_PRIVATE_KEY="your_firebase_private_key"
 ```
 
 ### Notes
@@ -58,6 +62,7 @@ CLIENT_URL=http://localhost:3000
   - `http://localhost:3000`
   - `http://localhost:3001`
   - `http://localhost:5000`
+- `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY` are required for Firebase Admin SDK authentication. Obtain these from your Firebase project's service account settings.
 
 ## Running the Server
 
@@ -81,7 +86,8 @@ npm start
 
 ## Current Routes
 
-- `GET /` - Health/info route.
+- `GET /` - Health/info route (alias for `/health`).
+- `GET /health` - Health/info route.
 
 Example response:
 

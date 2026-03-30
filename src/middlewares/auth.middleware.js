@@ -1,4 +1,4 @@
-const firebaseAdmin = require("../config/firebase.config")
+const firebaseAdmin = require("../config/firebase.config");
 
 
 /**
