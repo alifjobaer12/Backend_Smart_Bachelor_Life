@@ -42,3 +42,8 @@ uploads/
 # Test files
 test
 __tests__
+
+# firebase keys
+firebase-service-account.json
+firebase.json
+
