@@ -2,6 +2,12 @@ require("dotenv").config();
 
 // Check for required environment variables and provide warnings or errors
 
+if (!process.env.NODE_ENV) {
+	console.warn(
+		"NODE_ENV is not defined in the environment variables. Defaulting to 'development'.",
+	);
+}
+
 if (!process.env.CLIENT_URL) {
 	console.warn(
 		"CLIENT_URL is not defined in the environment variables. Using default allowed origins.",
@@ -41,6 +47,7 @@ if (!process.env.FIREBASE_PRIVATE_KEY) {
 }
 
 const envConfig = {
+	NODE_ENV: process.env.NODE_ENV || "development",
 	CLIENT_URL: process.env.CLIENT_URL,
 	PORT: process.env.PORT,
 	MONGO_URI: process.env.MONGO_URI,
