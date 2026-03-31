@@ -60,12 +60,10 @@ async function userRegisterController(req, res) {
  * - protected route, requires valid Firebase ID token
  */
 async function testLoginController(req, res) {
-	const { uid, email } = req.user || {};
-
 	return res.status(200).json({
 		success: true,
 		message: "Test login successful",
-		user: { uid, email },
+		user: req.user,
 	});
 }
 
@@ -81,6 +79,13 @@ async function userLoginController(req, res) {
 		return res.status(400).json({
 			success: false,
 			message: "Email is missing for login",
+		});
+	}
+
+	if (email !== req.user.email) {
+		return res.status(401).json({
+			success: false,
+			message: "Unauthorized: Email mismatch",
 		});
 	}
 
