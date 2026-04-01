@@ -39,4 +39,16 @@ authRouter.post(
 	authController.userLoginController,
 );
 
+/**
+ * - POST /api/auth/logout
+ * - user logout
+ * - protected route, requires valid Firebase ID token
+ * - blacklists the token to prevent further use
+ */
+authRouter.post(
+	"/logout",
+	authMiddleware.authUserMiddleware,
+	authController.userLogoutController,
+);
+
 module.exports = authRouter;
