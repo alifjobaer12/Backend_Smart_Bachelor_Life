@@ -1,5 +1,9 @@
 const userModel = require("../models/user.model");
 
+const emailService = require("../services/email.service");
+
+const tokenBlackListModel = require("../models/tokenBlacklist.model");
+
 /**
  * - user registration controller
  * - POST /api/auth/register
@@ -40,11 +44,14 @@ async function userRegisterController(req, res) {
 			lastLoginAt,
 		});
 
-		return res.status(201).json({
+		res.status(201).json({
 			success: true,
 			message: "User registered successfully",
 			user: newUser,
 		});
+
+		// Send a welcome email to the new user
+		emailService.sendRegisreationEmail(email, displayName);
 	} catch (error) {
 		console.error("Error registering user:", error);
 		return res.status(500).json({
@@ -117,8 +124,35 @@ async function userLoginController(req, res) {
 	}
 }
 
+/**
+ * - user logout controller
+ * - POST /api/auth/logout
+ * - protected route, requires valid Firebase ID token
+ * - blacklists the token to prevent further use
+ */
+async function userLogoutController(req, res) {
+	const token = req.headers.authorization?.split(" ")[1];
+
+	if (!token) {
+		return res.status(400).json({
+			success: false,
+			message: "Already logged out",
+		});
+	}
+
+	await tokenBlackListModel.create({
+		token,
+	});
+
+	res.status(200).json({
+		success: true,
+		message: "User logged out successfully",
+	});
+}
+
 module.exports = {
 	userRegisterController,
 	testLoginController,
 	userLoginController,
+	userLogoutController,
 };
