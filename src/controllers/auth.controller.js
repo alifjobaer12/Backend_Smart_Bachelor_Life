@@ -1,5 +1,7 @@
 const userModel = require("../models/user.model");
 
+const emailService = require("../services/email.service");
+
 /**
  * - user registration controller
  * - POST /api/auth/register
@@ -40,11 +42,14 @@ async function userRegisterController(req, res) {
 			lastLoginAt,
 		});
 
-		return res.status(201).json({
+		res.status(201).json({
 			success: true,
 			message: "User registered successfully",
 			user: newUser,
 		});
+
+		// Send a welcome email to the new user
+		emailService.sendRegisreationEmail(email, displayName);
 	} catch (error) {
 		console.error("Error registering user:", error);
 		return res.status(500).json({
