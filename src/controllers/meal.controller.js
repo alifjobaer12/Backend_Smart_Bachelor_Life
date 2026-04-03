@@ -42,67 +42,67 @@ exports.getMeals = asyncHandler(async (req, res) => {
   });
 });
 
-// ✅ Update Meal
-exports.updateMeal = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { mealCount } = req.body;
+// // ✅ Update Meal
+// exports.updateMeal = asyncHandler(async (req, res) => {
+//   const { id } = req.params;
+//   const { mealCount } = req.body;
 
-  const meal = await Meal.findByIdAndUpdate(
-    id,
-    { mealCount },
-    { new: true }
-  );
+//   const meal = await Meal.findByIdAndUpdate(
+//     id,
+//     { mealCount },
+//     { new: true }
+//   );
 
-  if (!meal) {
-    return res.status(404).json({
-      success: false,
-      message: "Meal not found",
-    });
-  }
+//   if (!meal) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Meal not found",
+//     });
+//   }
 
-  res.status(200).json({
-    success: true,
-    message: "Meal updated successfully",
-    data: meal,
-  });
-});
+//   res.status(200).json({
+//     success: true,
+//     message: "Meal updated successfully",
+//     data: meal,
+//   });
+// });
 
-// ✅ Delete Meal
-exports.deleteMeal = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+// // ✅ Delete Meal
+// exports.deleteMeal = asyncHandler(async (req, res) => {
+//   const { id } = req.params;
 
-  const meal = await Meal.findByIdAndDelete(id);
+//   const meal = await Meal.findByIdAndDelete(id);
 
-  if (!meal) {
-    return res.status(404).json({
-      success: false,
-      message: "Meal not found",
-    });
-  }
+//   if (!meal) {
+//     return res.status(404).json({
+//       success: false,
+//       message: "Meal not found",
+//     });
+//   }
 
-  res.status(200).json({
-    success: true,
-    message: "Meal deleted successfully",
-  });
-});
+//   res.status(200).json({
+//     success: true,
+//     message: "Meal deleted successfully",
+//   });
+// });
 
-// ✅ Group summary (important)
-exports.getMealSummary = asyncHandler(async (req, res) => {
-  const { groupID } = req.query;
+// // ✅ Group summary (important)
+// exports.getMealSummary = asyncHandler(async (req, res) => {
+//   const { groupID } = req.query;
 
-  const meals = await Meal.find({ groupID });
+//   const meals = await Meal.find({ groupID });
 
-  let totalMeals = 0;
+//   let totalMeals = 0;
 
-  meals.forEach((m) => {
-    totalMeals += m.mealCount;
-  });
+//   meals.forEach((m) => {
+//     totalMeals += m.mealCount;
+//   });
 
-  res.status(200).json({
-    success: true,
-    data: {
-      totalMeals,
-      totalEntries: meals.length,
-    },
-  });
-});
+//   res.status(200).json({
+//     success: true,
+//     data: {
+//       totalMeals,
+//       totalEntries: meals.length,
+//     },
+//   });
+// });
