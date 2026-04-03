@@ -31,8 +31,13 @@ const paymentSchema = new mongoose.Schema({
 		trim: true,
 		enum: {
 			values: ["PENDING", "COMPLETED", "FAILED"],
-			message: "Status must be either 'PENDING', 'COMPLETED', or 'FAILED'",
+			message:
+				"Status must be either 'PENDING', 'COMPLETED', or 'FAILED'",
 		},
 		default: "PENDING",
 	},
-})
+});
+
+const paymentModel = mongoose.model("payment", paymentSchema);
+
+module.exports = paymentModel;

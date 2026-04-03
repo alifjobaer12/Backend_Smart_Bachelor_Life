@@ -27,10 +27,6 @@ const expenseSchema = new mongoose.Schema({
 		trim: true,
 		default: "",
 	},
-	date: {
-		type: Date,
-		required: [true, "date is required for creating an expense entry"],
-	},
 	documentURL: {
 		type: String,
 		trim: true,
