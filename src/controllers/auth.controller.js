@@ -62,19 +62,6 @@ async function userRegisterController(req, res) {
 }
 
 /**
- * - test login controller to verify authentication middleware
- * - POST /api/auth/test-login
- * - protected route, requires valid Firebase ID token
- */
-async function testLoginController(req, res) {
-	return res.status(200).json({
-		success: true,
-		message: "Test login successful",
-		user: req.user,
-	});
-}
-
-/**
  * - user login controller
  * - POST /api/auth/login
  * - protected route, requires valid Firebase ID token
@@ -152,7 +139,6 @@ async function userLogoutController(req, res) {
 
 module.exports = {
 	userRegisterController,
-	testLoginController,
 	userLoginController,
 	userLogoutController,
 };

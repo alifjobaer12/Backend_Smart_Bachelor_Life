@@ -46,4 +46,5 @@ __tests__
 # firebase keys
 firebase-service-account.json
 firebase.json
+*test*
 
