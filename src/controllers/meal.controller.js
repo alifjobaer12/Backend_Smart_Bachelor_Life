@@ -5,7 +5,7 @@ const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
 
-// ✅ Create Meal
+//  Create Meal
 exports.createMeal = asyncHandler(async (req, res) => {
   const userID = req.user.id; // from auth middleware
   const { groupID, date, mealCount } = req.body;
@@ -24,7 +24,7 @@ exports.createMeal = asyncHandler(async (req, res) => {
   });
 });
 
-// ✅ Get all meals (group-wise)
+//  Get all meals (group-wise)
 exports.getMeals = asyncHandler(async (req, res) => {
   const { groupID, date } = req.query;
 
@@ -34,13 +34,13 @@ exports.getMeals = asyncHandler(async (req, res) => {
     query.date = date;
   }
 
-  const meals = await Meal.find(query).populate("userID", "displayName email");
+//   const meals = await Meal.find(query).populate("userID", "displayName email");
 
-  res.status(200).json({
-    success: true,
-    data: meals,
-  });
-});
+//   res.status(200).json({
+//     success: true,
+//     data: meals,
+//   });
+// });
 
 // // ✅ Update Meal
 // exports.updateMeal = asyncHandler(async (req, res) => {
