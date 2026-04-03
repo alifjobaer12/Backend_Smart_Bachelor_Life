@@ -1,5 +1,4 @@
 const express = require("express");
-const envConfig = require("../config/env.config");
 
 const authController = require("../controllers/auth.controller");
 
@@ -13,20 +12,6 @@ const authRouter = express.Router();
  * - open to public
  */
 authRouter.post("/register", authController.userRegisterController);
-
-/**
- * - POST /api/auth/test-login
- * - test login route to verify authentication middleware
- * - protected route, requires valid Firebase ID token
- * - only enabled in non-production environments
- */
-if (envConfig.NODE_ENV !== "production") {
-	authRouter.post(
-		"/test-login",
-		authMiddleware.authUserMiddleware,
-		authController.testLoginController,
-	);
-}
 
 /**
  * - POST /api/auth/login
