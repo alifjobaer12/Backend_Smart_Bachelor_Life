@@ -33,7 +33,12 @@ async function authUserMiddleware(req, res, next) {
 
 	try {
 		const decoded = await firebaseAdmin.auth().verifyIdToken(token);
-		req.user = decoded;
+
+		const user = await userModel.findOne({
+			$or: [{ firebaseUid: decoded.uid }, { email: decoded.email }],
+		});
+
+		req.user = user;
 		next();
 	} catch (error) {
 		console.error("Authentication error:", error);
@@ -75,7 +80,7 @@ async function authManagerMiddleware(req, res, next) {
 
 		const isManager = await userModel.findOne({
 			$or: [{ firebaseUid: decoded.uid }, { email: decoded.email }],
-			role: "manager",
+			role: "MANAGER",
 		});
 
 		if (!isManager) {
@@ -85,7 +90,7 @@ async function authManagerMiddleware(req, res, next) {
 			});
 		}
 
-		req.user = decoded;
+		req.user = isManager;
 		next();
 	} catch (error) {
 		console.error("Authentication error:", error);
