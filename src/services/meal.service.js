@@ -28,8 +28,7 @@ const getMealsService = async (groupId, date) => {
 
   return await Meal.find(query).populate("userId", "displayName email");
 };
-
-// Delete meal
+// Delete meal by id
 const deleteMealService = async (id) => {
   return await Meal.findByIdAndDelete(id);
 };
