@@ -12,6 +12,8 @@ const testRouter =
 		? require("./routes/route.test")
 		: null;
 const authRouter = require("./routes/auth.route");
+const expensesRouter = require("./routes/expenses.route");
+const groupRouter = require("./routes/group.route");
 
 // Create an Express application
 const app = express();
@@ -52,5 +54,7 @@ if (envConfig.NODE_ENV === "development" && testRouter) {
 	app.use("/api/test", testRouter);
 }
 app.use("/api/auth", authRouter);
+app.use("/api/expenses", expensesRouter);
+app.use("/api/group", groupRouter);
 
 module.exports = app;
