@@ -4,8 +4,13 @@ const envConfig = require("./config/env.config");
 
 /**
  * 	Routes Requires
+ * - test routes
  * - auth routes
  */
+const testRouter =
+	envConfig.NODE_ENV === "development"
+		? require("./routes/route.test")
+		: null;
 const authRouter = require("./routes/auth.route");
 
 // Create an Express application
@@ -40,8 +45,12 @@ app.get("/health", (req, res) => {
 
 /**
  * 	Routes Use
+ * - test routes
  * - auth routes
  */
+if (envConfig.NODE_ENV === "development" && testRouter) {
+	app.use("/api/test", testRouter);
+}
 app.use("/api/auth", authRouter);
 
 module.exports = app;
