@@ -13,6 +13,7 @@ exports.createGroup = async (req, res) => {
         message: "User not found in database",
       });
     }
+    
 
     const { title, address } = req.body;
 
