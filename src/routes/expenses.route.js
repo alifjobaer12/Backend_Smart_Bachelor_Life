@@ -16,4 +16,10 @@ expenseRouter.post(
 	expenseController.createExpense,
 );
 
+expenseRouter.get(
+	"/",
+	authMiddleware.authUserMiddleware,
+	expenseController.getExpenses,
+);
+
 module.exports = expenseRouter;

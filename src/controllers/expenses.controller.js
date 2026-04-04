@@ -62,6 +62,75 @@ async function createExpense(req, res) {
 	});
 }
 
+async function getExpenses(req, res) {
+	const { dateFrom, dateTo } = req.query;
+
+	const isValidDate = (date) => !isNaN(new Date(date));
+
+	if (dateFrom && !isValidDate(dateFrom)) {
+		return res.status(400).json({
+			success: false,
+			message: "Invalid dateFrom",
+		});
+	}
+
+	if (dateTo && !isValidDate(dateTo)) {
+		return res.status(400).json({
+			success: false,
+			message: "Invalid dateTo",
+		});
+	}
+
+	const group = await groupModel.findOne({
+		$or: [{ managerID: req.user._id }, { userIDs: req.user._id }],
+	});
+
+	if (!group) {
+		return res.status(403).json({
+			success: false,
+			message: "Not authorized to view expenses",
+		});
+	}
+
+	let fromDate;
+	let toDate;
+
+	if (!dateFrom && !dateTo) {
+		const now = new Date();
+		fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+		toDate = new Date(
+			now.getFullYear(),
+			now.getMonth() + 1,
+			0,
+			23,
+			59,
+			59,
+			999,
+		);
+	} else {
+		fromDate = dateFrom ? new Date(dateFrom) : new Date(0);
+		toDate = dateTo ? new Date(dateTo) : new Date();
+
+		toDate.setHours(23, 59, 59, 999);
+	}
+
+	const expenses = await expenseModel
+		.find({
+			groupID: group._id,
+			createdAt: { $gte: fromDate, $lte: toDate },
+		})
+		.populate("userID", "displayName email")
+		.sort({ createdAt: -1 })
+		.limit(50);
+
+	return res.status(200).json({
+		success: true,
+		message: "Expenses retrieved successfully",
+		expenses,
+	});
+}
+
 module.exports = {
 	createExpense,
+	getExpenses,
 };
