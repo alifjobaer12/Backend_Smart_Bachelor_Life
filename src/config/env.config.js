@@ -1,21 +1,22 @@
 require("dotenv").config();
 
+const logger = require("../utils/logger.util");
 // Check for required environment variables and provide warnings or errors
 
 if (!process.env.NODE_ENV) {
-	console.warn(
+	logger.warn(
 		"NODE_ENV is not defined in the environment variables. Defaulting to 'development'.",
 	);
 }
 
 if (!process.env.CLIENT_URL) {
-	console.warn(
+	logger.warn(
 		"CLIENT_URL is not defined in the environment variables. Using default allowed origins.",
 	);
 }
 
 if (!process.env.PORT) {
-	console.warn(
+	logger.warn(
 		"PORT is not defined in the environment variables. Using default port 3000.",
 	);
 }
