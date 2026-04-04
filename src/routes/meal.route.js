@@ -14,4 +14,3 @@ const authMiddleware = require("../middlewares/auth.middleware");
 
 router.post("/", authMiddleware, createMeal);
 
-
