@@ -1,6 +1,6 @@
 const Menu = require("../models/menu.model");
 
-// Creating Menu
+// Create Menu
 exports.createMenu = async (req, res) => {
   try {
     const userID = req.user.uid;
