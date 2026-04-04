@@ -31,4 +31,23 @@ groupRouter.post(
 	groupController.removeUserFromGroup,
 );
 
+groupRouter.get(
+	"/details",
+	authMiddleware.authManagerMiddleware,
+	groupController.getGroupDetails,
+);
+
+groupRouter.get(
+	"/details/:groupId",
+	authMiddleware.authUserMiddleware,
+	groupController.getGroupDetailsForMember,
+);
+
+
+groupRouter.post(
+	"/change-role",
+	authMiddleware.authManagerMiddleware,
+	groupController.chengeUserRole,
+);
+
 module.exports = groupRouter;

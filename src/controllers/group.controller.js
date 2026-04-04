@@ -1,3 +1,5 @@
+const mongoose = require("mongoose");
+
 const groupModel = require("../models/group.model");
 const userModel = require("../models/user.model");
 
@@ -141,7 +143,9 @@ async function joinByJoinCode(req, res) {
 		}
 
 		// Find the group by joinCode
-		const group = await groupModel.findOne({ joinCode });
+		const group = await groupModel
+			.findOne({ joinCode })
+			.select("+invitedEmails");
 
 		if (!group) {
 			return res.status(404).json({
@@ -188,9 +192,11 @@ async function removeUserFromGroup(req, res) {
 		});
 	}
 
-	const group = await groupModel.findOne({
-		managerID: req.user._id,
-	});
+	const group = await groupModel
+		.findOne({
+			managerID: req.user._id,
+		})
+		.select("+invitedEmails");
 
 	if (!group) {
 		return res.status(403).json({
@@ -229,9 +235,138 @@ async function removeUserFromGroup(req, res) {
 	}
 }
 
+async function getGroupDetails(req, res) {
+	const group = await groupModel
+		.findOne({
+			managerID: req.user._id,
+		})
+		.populate("userIDs", "email displayName");
+
+	if (!group) {
+		return res.status(404).json({
+			success: false,
+			message: "Group not found for the manager",
+		});
+	}
+
+	return res.status(200).json({
+		success: true,
+		message: "Group details retrieved successfully",
+		group,
+	});
+}
+
+async function getGroupDetailsForMember(req, res) {
+	const { groupId } = req.params;
+
+	const group = await groupModel
+		.findOne({
+			_id: groupId,
+			userIDs: req.user._id,
+		})
+		.populate("managerID", "email displayName");
+
+	if (!group) {
+		return res.status(404).json({
+			success: false,
+			message: "Group not found or you are not a member of this group",
+		});
+	}
+
+	return res.status(200).json({
+		success: true,
+		message: "Group details retrieved successfully",
+		groupTitle: group.title,
+		groupAddress: group.address,
+		manager: group.managerID,
+	});
+}
+
+async function chengeUserRole(req, res) {
+	const { userId } = req.body;
+
+	if (!userId) {
+		return res.status(400).json({
+			success: false,
+			message: "userId is required",
+		});
+	}
+
+	try {
+		await mongoose.connection.transaction(async (session) => {
+			// 🔹 Get group inside transaction
+			const group = await groupModel.findOne(
+				{ managerID: req.user._id },
+				null,
+				{ session },
+			);
+
+			if (!group) {
+				throw new Error("Only managers can change roles");
+			}
+
+			if (group.managerID.toString() === userId) {
+				throw new Error("You cannot change your own role");
+			}
+
+			// 🔹 Get target user
+			const user = await userModel.findById(userId, null, { session });
+
+			if (!user) {
+				throw new Error("User not found");
+			}
+
+			// 🔹 Check membership
+			const isMember = group.userIDs.some(
+				(id) => id.toString() === user._id.toString(),
+			);
+
+			if (!isMember) {
+				throw new Error("User is not a group member");
+			}
+
+			// 🔥 Get current manager (old)
+			const oldManager = await userModel.findById(group.managerID, null, {
+				session,
+			});
+
+			// 🔁 Role switch
+			user.role = "MANAGER";
+			await user.save({ session });
+
+			oldManager.role = "USER";
+			await oldManager.save({ session });
+
+			// 🔁 Update group
+			group.managerID = user._id;
+
+			group.userIDs.pull(user._id);
+			group.userIDs.addToSet(oldManager._id);
+
+			await group.save({ session });
+
+			res.status(200).json({
+				success: true,
+				message: "Role transferred successfully",
+				newManager: user,
+			});
+		});
+	} catch (error) {
+		console.error(error);
+
+		return res.status(500).json({
+			success: false,
+			message: error.message || "Internal error",
+		});
+	}
+}
+
 module.exports = {
 	createGroup,
 	sendJoinCode,
 	joinByJoinCode,
 	removeUserFromGroup,
+	getGroupDetails,
+	getGroupDetailsForMember,
+	chengeUserRole,
 };

@@ -34,6 +34,7 @@ const groupSchema = new mongoose.Schema(
 		invitedEmails: {
 			type: [String],
 			default: [],
+			select: false, // Hide invitedEmails from query results by default
 		},
 	},
 	{
