@@ -111,3 +111,33 @@ exports.getMyGroup = async (req, res) => {
     });
   }
 };
+
+//  Get Group Members
+exports.getGroupMembers = async (req, res) => {
+  try {
+    const { groupID } = req.params;
+
+    const group = await Group.findById(groupID).populate(
+      "users",
+      "displayName email"
+    );
+
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: "Group not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: group.users,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch members",
+      error: error.message,
+    });
+  }
+};
