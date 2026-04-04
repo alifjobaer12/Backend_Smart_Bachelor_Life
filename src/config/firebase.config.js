@@ -13,7 +13,7 @@ try {
 			privateKey: envConfig.FIREBASE_PRIVATE_KEY,
 		}),
 	});
-	logger.info("✔️   Firebase Admin SDK initialized successfully");
+	logger.info("✔️  Firebase Admin SDK initialized successfully");
 } catch (err) {
 	logger.error("Error initializing Firebase Admin SDK:", err.message);
 	process.exit(1);

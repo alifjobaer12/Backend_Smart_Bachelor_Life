@@ -1,12 +1,12 @@
 const winston = require("winston");
 require("winston-daily-rotate-file"); // Import the transport
-const { combine, timestamp, json, printf, colorize, errors } = winston.format;
+const { combine, timestamp, json, errors } = winston.format;
 
 const levels = {
 	error: 0,
 	warn: 1,
-	info: 2,
-	http: 3,
+	http: 2,
+	info: 3,
 	debug: 4,
 };
 
@@ -15,13 +15,57 @@ const level = () => {
 	return env === "development" ? "debug" : "info";
 };
 
-const developmentFormat = combine(
-	colorize({ all: true }),
-	timestamp({ format: "YYYY-MM-DD HH:mm:ss:ms" }),
-	printf((info) => `${info.timestamp} [${info.level}]: ${info.message}`),
-);
+const REDACTED = "[REDACTED]";
+const REDACT_KEYS = new Set([
+	"authorization",
+	"password",
+	"passwd",
+	"pwd",
+	"token",
+	"accesstoken",
+	"refreshtoken",
+	"idtoken",
+	"apikey",
+	"api_key",
+	"secret",
+	"cookie",
+	"set-cookie",
+]);
 
-const productionFormat = combine(timestamp(), errors({ stack: true }), json());
+function redactSensitive(value) {
+	if (Array.isArray(value)) {
+		for (let i = 0; i < value.length; i += 1) {
+			value[i] = redactSensitive(value[i]);
+		}
+		return value;
+	}
+
+	if (!value || typeof value !== "object") {
+		return value;
+	}
+
+	for (const [key, val] of Object.entries(value)) {
+		const normalizedKey = key.toLowerCase().replace(/[\s_-]/g, "");
+
+		if (REDACT_KEYS.has(normalizedKey)) {
+			value[key] = REDACTED;
+			continue;
+		}
+
+		value[key] = redactSensitive(val);
+	}
+
+	return value;
+}
+
+const redactSensitiveFormat = winston.format((info) => redactSensitive(info));
+
+const logFormat = combine(
+	errors({ stack: true }),
+	redactSensitiveFormat(),
+	timestamp(),
+	json(),
+);
 
 // --- NEW: Configure File Transports ---
 
@@ -49,15 +93,10 @@ const errorFileRotateTransport = new winston.transports.DailyRotateFile({
 const logger = winston.createLogger({
 	level: level(),
 	levels,
-	format:
-		process.env.NODE_ENV === "production"
-			? productionFormat
-			: developmentFormat,
-	defaultMeta: { service: "your-service-name" },
+	format: logFormat,
+	defaultMeta: { service: "smart-bachelor-life-server" },
 	transports: [
-		// Always log to the console
 		new winston.transports.Console(),
-		// Add the file transports
 		fileRotateTransport,
 		errorFileRotateTransport,
 	],
@@ -65,11 +104,12 @@ const logger = winston.createLogger({
 
 function getLogContext(req) {
 	return {
-		requestId: req.id || req.headers["x-request-id"],
+		requestId: req.id || req.requestId || req.headers["x-request-id"],
 		method: req.method,
 		path: req.originalUrl,
 		ip: req.ip,
 		userAgent: req.headers["user-agent"],
+		userId: req.user?._id?.toString?.() || req.user?.id || req.user?.uid,
 		userUid: req.user?.uid,
 		userEmail: req.user?.email,
 	};

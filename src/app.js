@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const envConfig = require("./config/env.config");
+const httpLoggerMiddleware = require("./middlewares/httpLogger.middleware");
 
 /**
  * 	Routes Requires
@@ -35,6 +36,7 @@ app.use(
 		allowedHeaders: ["Content-Type", "Authorization"],
 	}),
 );
+app.use(httpLoggerMiddleware);
 app.use(express.json());
 
 /**
