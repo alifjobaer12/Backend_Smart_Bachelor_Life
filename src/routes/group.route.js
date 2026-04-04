@@ -18,6 +18,9 @@ router.post("/", authUserMiddleware, createGroup);
 
 //  Join group
 router.post("/join", authUserMiddleware, joinGroup);
+//  Get my group
+router.get("/me", authUserMiddleware, getMyGroup);
+
 
 
 
