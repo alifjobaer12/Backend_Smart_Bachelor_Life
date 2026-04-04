@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const envConfig = require("./config/env.config");
+const httpLoggerMiddleware = require("./middlewares/httpLogger.middleware");
 
 // test route (optional)
 const testRouter =
@@ -27,25 +28,13 @@ app.use(
 		methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
 		credentials: true,
 		allowedHeaders: ["Content-Type", "Authorization"],
-	})
+	}),
 );
+app.use(express.json());
 
-// routes
-const mealRoutes = require("./routes/meal.route");
-const menuRoutes = require("./routes/menu.route");
-const bazarRoutes = require("./routes/bazar.route");
-
-app.use("/api/meals", mealRoutes);
-app.use("/api/menus", menuRoutes);
-app.use("/api/bazar", bazarRoutes);
-app.use("/api/auth", authRouter);
-
-// test route
-if (envConfig.NODE_ENV === "development" && testRouter) {
-	app.use("/api/test", testRouter);
-}
-
-// health
+/**
+ * Basic route to check if the server is running.
+ */
 app.get("/health", (req, res) => {
 	res.status(200).json({
 		success: true,

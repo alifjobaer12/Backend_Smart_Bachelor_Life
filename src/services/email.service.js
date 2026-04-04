@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const { logger } = require("../utils/logger.util");
 
 /**
  * - create a transporter object using the Gmail service and OAuth2 authentication
@@ -18,9 +19,11 @@ const transporter = nodemailer.createTransport({
 // Verify the connection configuration
 transporter.verify((error, success) => {
 	if (error) {
-		console.error("Error connecting to email server:", error);
+		logger.error("Email server connection failed:", {
+			error: getErrorMeta(error),
+		});
 	} else {
-		console.log("✔️  Email server is ready to send messages");
+		logger.info("✔️  Email server is ready to send messages");
 	}
 });
 
@@ -35,10 +38,13 @@ const sendEmail = async (to, subject, text, html) => {
 			html, // html body
 		});
 
-		console.log("Message sent: %s", info.messageId);
-		console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+		logger.info("Message sent: %s", info.messageId);
 	} catch (error) {
-		console.error("Error sending email:", error);
+		logger.error("Failed to send email:", {
+			to,
+			subject,
+			error: getErrorMeta(error),
+		});
 	}
 };
 
@@ -209,8 +215,64 @@ async function sendUserRemovalEmail(userEmail, name, groupTitle) {
 	await sendEmail(userEmail, subject, text, html);
 }
 
+async function sendRoleTransferEmail(
+	userEmail,
+	name,
+	groupTitle,
+	isNewManager,
+) {
+	const subject = isNewManager
+		? `You are now manager of ${groupTitle}`
+		: `Your manager role changed in ${groupTitle}`;
+
+	const text = isNewManager
+		? `Dear ${name},\n\nYou have been promoted to manager of the group "${groupTitle}" on Smart Bachelor Life.\n\nBest regards,\nSmart Bachelor Life Support Team`
+		: `Dear ${name},\n\nYour role in the group "${groupTitle}" has been changed from manager to user on Smart Bachelor Life.\n\nBest regards,\nSmart Bachelor Life Support Team`;
+
+	const html = isNewManager
+		? `
+			<div style="margin:0;padding:28px 14px;background:#effcf6;font-family:'Segoe UI',Tahoma,Arial,sans-serif;color:#0f172a;">
+				<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #bbf7d0;border-radius:16px;overflow:hidden;">
+					<tr>
+						<td style="padding:24px;background:linear-gradient(135deg,#047857 0%,#10b981 100%);color:#ffffff;">
+							<h1 style="margin:0;font-size:26px;line-height:1.2;">Manager Role Assigned</h1>
+						</td>
+					</tr>
+					<tr>
+						<td style="padding:24px;">
+							<p style="margin:0 0 12px;font-size:16px;color:#1e293b;">Hi ${name},</p>
+							<p style="margin:0 0 10px;font-size:15px;line-height:1.7;color:#334155;">You are now the manager of <strong>${groupTitle}</strong> on Smart Bachelor Life.</p>
+							<p style="margin:0;font-size:14px;color:#64748b;">Best regards,<br><strong>Smart Bachelor Life Support Team</strong></p>
+						</td>
+					</tr>
+				</table>
+			</div>
+		`
+		: `
+			<div style="margin:0;padding:28px 14px;background:#fff7ed;font-family:'Segoe UI',Tahoma,Arial,sans-serif;color:#0f172a;">
+				<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #fed7aa;border-radius:16px;overflow:hidden;">
+					<tr>
+						<td style="padding:24px;background:linear-gradient(135deg,#b45309 0%,#f59e0b 100%);color:#ffffff;">
+							<h1 style="margin:0;font-size:26px;line-height:1.2;">Role Updated</h1>
+						</td>
+					</tr>
+					<tr>
+						<td style="padding:24px;">
+							<p style="margin:0 0 12px;font-size:16px;color:#1e293b;">Hi ${name},</p>
+							<p style="margin:0 0 10px;font-size:15px;line-height:1.7;color:#334155;">Your role in <strong>${groupTitle}</strong> has been changed from manager to user.</p>
+							<p style="margin:0;font-size:14px;color:#64748b;">Best regards,<br><strong>Smart Bachelor Life Support Team</strong></p>
+						</td>
+					</tr>
+				</table>
+			</div>
+		`;
+
+	await sendEmail(userEmail, subject, text, html);
+}
+
 module.exports = {
 	sendRegisreationEmail,
 	sendJoinCodeEmail,
 	sendUserRemovalEmail,
+	sendRoleTransferEmail,
 };

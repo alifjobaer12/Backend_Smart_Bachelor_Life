@@ -2,6 +2,7 @@ const firebaseAdmin = require("../config/firebase.config");
 
 const tokenBlackListModel = require("../models/tokenBlacklist.model");
 const userModel = require("../models/user.model");
+const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 
 /**
  * 	Middleware to authenticate users using Firebase ID tokens.
@@ -11,37 +12,78 @@ const userModel = require("../models/user.model");
  * - Also checks if the token is blacklisted (e.g., after logout) and denies access if it is.
  */
 async function authUserMiddleware(req, res, next) {
-	const token = req.headers.authorization?.split(" ")[1];
+	const logCtx = getLogContext(req);
+	const authHeader = req.headers.authorization;
+	const token = authHeader?.startsWith("Bearer ")
+		? authHeader.split(" ")[1]
+		: null;
+
+	logger.info("Auth user middleware attempt", {
+		...logCtx,
+		hasAuthHeader: !!authHeader,
+	});
 
 	if (!token) {
+		logger.warn("Auth user middleware failed: missing bearer token", {
+			...logCtx,
+		});
+
 		return res.status(401).json({
 			success: false,
 			message: "Authorization token is missing",
 		});
 	}
 
-	const isTokenBlacklisted = await tokenBlackListModel.findOne({
-		token,
-	});
-
-	if (isTokenBlacklisted) {
-		return res.status(401).json({
-			success: false,
-			message: "Unauthorized, token is blacklisted",
-		});
-	}
-
 	try {
+		const isTokenBlacklisted = await tokenBlackListModel.findOne({
+			token,
+		});
+
+		if (isTokenBlacklisted) {
+			logger.warn("Auth user middleware failed: token blacklisted", {
+				...logCtx,
+			});
+
+			return res.status(401).json({
+				success: false,
+				message: "Unauthorized, token is blacklisted",
+			});
+		}
+
 		const decoded = await firebaseAdmin.auth().verifyIdToken(token);
 
 		const user = await userModel.findOne({
 			$or: [{ firebaseUid: decoded.uid }, { email: decoded.email }],
 		});
 
+		if (!user) {
+			logger.warn("Auth user middleware failed: user not found", {
+				...logCtx,
+				firebaseUid: decoded.uid,
+				email: decoded.email,
+			});
+
+			return res.status(401).json({
+				success: false,
+				message: "Unauthorized, user not found",
+			});
+		}
+
 		req.user = user;
+
+		logger.info("Auth user middleware success", {
+			...logCtx,
+			userId: user._id,
+			email: user.email,
+		});
+
 		next();
 	} catch (error) {
-		console.error("Authentication error:", error);
+		logger.error("Auth user middleware failed", {
+			...logCtx,
+			error: getErrorMeta(error),
+		});
+
 		return res.status(401).json({
 			success: false,
 			message: "Invalid or expired token",
@@ -55,27 +97,44 @@ async function authUserMiddleware(req, res, next) {
  * - Also checks if the token is blacklisted and denies access if it is.
  */
 async function authManagerMiddleware(req, res, next) {
-	const token = req.headers.authorization?.split(" ")[1];
+	const logCtx = getLogContext(req);
+	const authHeader = req.headers.authorization;
+	const token = authHeader?.startsWith("Bearer ")
+		? authHeader.split(" ")[1]
+		: null;
+
+	logger.info("Auth manager middleware attempt", {
+		...logCtx,
+		hasAuthHeader: !!authHeader,
+	});
 
 	if (!token) {
+		logger.warn("Auth manager middleware failed: missing bearer token", {
+			...logCtx,
+		});
+
 		return res.status(401).json({
 			success: false,
 			message: "Authorization token is missing",
 		});
 	}
 
-	const isTokenBlacklisted = await tokenBlackListModel.findOne({
-		token,
-	});
-
-	if (isTokenBlacklisted) {
-		return res.status(401).json({
-			success: false,
-			message: "Unauthorized, token is blacklisted",
-		});
-	}
-
 	try {
+		const isTokenBlacklisted = await tokenBlackListModel.findOne({
+			token,
+		});
+
+		if (isTokenBlacklisted) {
+			logger.warn("Auth manager middleware failed: token blacklisted", {
+				...logCtx,
+			});
+
+			return res.status(401).json({
+				success: false,
+				message: "Unauthorized, token is blacklisted",
+			});
+		}
+
 		const decoded = await firebaseAdmin.auth().verifyIdToken(token);
 
 		const isManager = await userModel.findOne({
@@ -84,6 +143,12 @@ async function authManagerMiddleware(req, res, next) {
 		});
 
 		if (!isManager) {
+			logger.warn("Auth manager middleware failed: not a manager", {
+				...logCtx,
+				firebaseUid: decoded.uid,
+				email: decoded.email,
+			});
+
 			return res.status(403).json({
 				success: false,
 				message: "Forbidden, user is not a manager",
@@ -91,9 +156,20 @@ async function authManagerMiddleware(req, res, next) {
 		}
 
 		req.user = isManager;
+
+		logger.info("Auth manager middleware success", {
+			...logCtx,
+			userId: isManager._id,
+			email: isManager.email,
+		});
+
 		next();
 	} catch (error) {
-		console.error("Authentication error:", error);
+		logger.error("Auth manager middleware failed", {
+			...logCtx,
+			error: getErrorMeta(error),
+		});
+
 		return res.status(401).json({
 			success: false,
 			message: "Invalid or expired token",
