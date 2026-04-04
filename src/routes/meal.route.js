@@ -23,3 +23,7 @@ router.patch("/:id", authMiddleware, updateMeal);
 
 router.delete("/:id", authMiddleware, deleteMeal);
 
+
+router.get("/summary", authMiddleware, getMealSummary);
+
+module.exports = router;
