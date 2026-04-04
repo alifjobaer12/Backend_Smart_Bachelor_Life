@@ -29,3 +29,31 @@ exports.createExpense = async (req, res) => {
     });
   }
 };
+
+//  Get Expenses
+exports.getExpenses = async (req, res) => {
+  try {
+    const { groupID, date, category } = req.query;
+
+    const query = { groupID };
+
+    if (date) query.date = date;
+    if (category) query.category = category;
+
+    const expenses = await Expense.find(query).populate(
+      "userID",
+      "displayName email"
+    );
+
+    res.status(200).json({
+      success: true,
+      data: expenses,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch expenses",
+      error: error.message,
+    });
+  }
+};
