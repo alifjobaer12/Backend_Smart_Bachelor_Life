@@ -4,6 +4,11 @@ const groupModel = require("../models/group.model");
 
 const storageService = require("../services/storage.service");
 
+/**
+ * Create a new expense entry
+ * POST /api/expenses
+ * Protected route, requires valid Firebase ID token and group manager role
+ */
 async function createExpense(req, res) {
 	const { title, amount, category } = req.body;
 	const file = req.file;
@@ -62,6 +67,11 @@ async function createExpense(req, res) {
 	});
 }
 
+/**
+ * Get expense entries for the user's group
+ * GET /api/expenses?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD
+ * Protected route, requires valid Firebase ID token and group membership
+ */
 async function getExpenses(req, res) {
 	const { dateFrom, dateTo } = req.query;
 

@@ -6,6 +6,8 @@ const envConfig = require("./config/env.config");
  * 	Routes Requires
  * - test routes
  * - auth routes
+ * - expenses routes
+ * - group routes
  */
 const testRouter =
 	envConfig.NODE_ENV === "development"
@@ -49,6 +51,8 @@ app.get("/health", (req, res) => {
  * 	Routes Use
  * - test routes
  * - auth routes
+ * - expenses routes
+ * - group routes
  */
 if (envConfig.NODE_ENV === "development" && testRouter) {
 	app.use("/api/test", testRouter);

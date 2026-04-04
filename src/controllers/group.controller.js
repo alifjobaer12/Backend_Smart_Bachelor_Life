@@ -7,6 +7,11 @@ const joinCodeGenerator = require("../utils/joinCodeGenerator.util");
 
 const emailService = require("../services/email.service");
 
+/** 
+ * Create a new group
+ * POST /api/groups
+ * Protected route, requires valid Firebase ID token and group manager role
+*/
 async function createGroup(req, res) {
 	const { title, address } = req.body;
 
@@ -40,6 +45,11 @@ async function createGroup(req, res) {
 	}
 }
 
+/**
+ * - send join code to a list of emails
+ * - POST /api/groups/send-join-code
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
 async function sendJoinCode(req, res) {
 	const { userList } = req.body;
 
@@ -118,6 +128,11 @@ async function sendJoinCode(req, res) {
 	});
 }
 
+/**
+ * - join a group using a join code
+ * - POST /api/groups/join
+ * - protected route, requires valid Firebase ID token and group membership
+ */
 async function joinByJoinCode(req, res) {
 	const { joinCode } = req.body;
 	const userId = req.user._id;
@@ -182,6 +197,11 @@ async function joinByJoinCode(req, res) {
 	}
 }
 
+/**
+ * - remove a user from the group by email
+ * - POST /api/groups/remove-user
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
 async function removeUserFromGroup(req, res) {
 	const { email } = req.body;
 
@@ -235,6 +255,11 @@ async function removeUserFromGroup(req, res) {
 	}
 }
 
+/**
+ * - get group details for the manager
+ * - GET /api/groups/details
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
 async function getGroupDetails(req, res) {
 	const group = await groupModel
 		.findOne({
@@ -256,6 +281,11 @@ async function getGroupDetails(req, res) {
 	});
 }
 
+/**
+ * - get group details for a member
+ * - GET /api/groups/details/:groupId
+ * - protected route, requires valid Firebase ID token and group membership
+ */
 async function getGroupDetailsForMember(req, res) {
 	const { groupId } = req.params;
 
@@ -282,6 +312,11 @@ async function getGroupDetailsForMember(req, res) {
 	});
 }
 
+/**
+ * - change the manager role to another user in the group
+ * - POST /api/groups/change-role
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
 async function chengeUserRole(req, res) {
 	const { userId } = req.body;
 

@@ -6,42 +6,77 @@ const groupController = require("../controllers/group.controller");
 
 const groupRouter = express.Router();
 
+/**
+ * - create a new group
+ * - POST /api/groups
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
 groupRouter.post(
 	"/",
 	authMiddleware.authManagerMiddleware,
 	groupController.createGroup,
 );
 
+/**
+ * - send join code to a list of emails
+ * - POST /api/groups/send-join-code
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
 groupRouter.post(
 	"/send-join-code",
 	authMiddleware.authManagerMiddleware,
 	groupController.sendJoinCode,
 );
 
+/**
+ * - join a group using a join code
+ * - POST /api/groups/join
+ * - protected route, requires valid Firebase ID token and group membership
+ */
 groupRouter.post(
 	"/join",
 	authMiddleware.authUserMiddleware,
 	groupController.joinByJoinCode,
 );
 
+/**
+ * - remove a user from the group by email
+ * - POST /api/groups/remove-user
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
 groupRouter.post(
 	"/remove-user",
 	authMiddleware.authManagerMiddleware,
 	groupController.removeUserFromGroup,
 );
 
+/**
+ * - get group details for the manager
+ * - GET /api/groups/details
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
 groupRouter.get(
 	"/details",
 	authMiddleware.authManagerMiddleware,
 	groupController.getGroupDetails,
 );
 
+/**
+ * - get group details for a member
+ * - GET /api/groups/details/:groupId
+ * - protected route, requires valid Firebase ID token and group membership
+ */
 groupRouter.get(
 	"/details/:groupId",
 	authMiddleware.authUserMiddleware,
 	groupController.getGroupDetailsForMember,
 );
 
+/**
+ * - change the manager role to another user in the group
+ * - POST /api/groups/change-role
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
 groupRouter.post(
 	"/change-role",
 	authMiddleware.authManagerMiddleware,
