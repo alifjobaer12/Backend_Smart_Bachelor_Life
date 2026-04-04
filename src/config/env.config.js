@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const logger = require("../utils/logger.util");
+const { logger } = require("../utils/logger.util");
 // Check for required environment variables and provide warnings or errors
 
 if (!process.env.NODE_ENV) {

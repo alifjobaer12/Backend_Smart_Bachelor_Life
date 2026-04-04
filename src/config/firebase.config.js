@@ -2,7 +2,7 @@ const firebaseAdmin = require("firebase-admin");
 
 const envConfig = require("./env.config");
 
-const logger = require("../utils/logger.util");
+const { logger } = require("../utils/logger.util");
 
 // Initialize Firebase Admin SDK
 try {

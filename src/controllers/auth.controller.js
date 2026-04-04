@@ -4,27 +4,7 @@ const emailService = require("../services/email.service");
 
 const tokenBlackListModel = require("../models/tokenBlacklist.model");
 
-const logger = require("../utils/logger.util");
-
-function getLogContext(req) {
-	return {
-		requestId: req.id || req.headers["x-request-id"],
-		method: req.method,
-		path: req.originalUrl,
-		ip: req.ip,
-		userAgent: req.headers["user-agent"],
-		userUid: req.user?.uid,
-		userEmail: req.user?.email,
-	};
-}
-
-function getErrorMeta(error) {
-	return {
-		name: error?.name,
-		message: error?.message,
-		stack: error?.stack,
-	};
-}
+const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 
 /**
  * - user registration controller

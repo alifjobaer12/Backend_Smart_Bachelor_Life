@@ -2,7 +2,7 @@ const { createClient } = require("redis");
 
 const envConfig = require("./env.config");
 
-const logger = require("../utils/logger.util");
+const { logger } = require("../utils/logger.util");
 
 let client;
 

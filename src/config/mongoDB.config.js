@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const envConfig = require("./env.config");
 
-const logger = require("../utils/logger.util");
+const { logger } = require("../utils/logger.util");
 
 // Function to connect to MongoDB
 const connectDB = async () => {
