@@ -16,6 +16,7 @@ const {
 // Create (manager)
 router.post("/", authManagerMiddleware, createBazar);
 
+
 // Read (all users)
 router.get("/", authUserMiddleware, getBazar);
 
