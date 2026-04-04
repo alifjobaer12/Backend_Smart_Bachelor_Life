@@ -51,3 +51,36 @@ exports.getMenus = async (req, res) => {
     });
   }
 };
+
+// Update Menu
+exports.updateMenu = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { breakfast, lunch, dinner } = req.body;
+
+    const menu = await Menu.findByIdAndUpdate(
+      id,
+      { breakfast, lunch, dinner },
+      { new: true }
+    );
+
+    if (!menu) {
+      return res.status(404).json({
+        success: false,
+        message: "Menu not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Menu updated successfully",
+      data: menu,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to update menu",
+      error: error.message,
+    });
+  }
+};
