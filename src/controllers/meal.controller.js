@@ -1,29 +1,27 @@
 const Meal = require("../models/meal.model");
+const User = require("../models/user.model");
 
 // Create Meal
 exports.createMeal = async (req, res) => {
   try {
-    const userID = req.user.uid;
+    const user = await User.findOne({ firebaseUid: req.user.uid });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
     const { groupID, date, mealCount } = req.body;
 
     const meal = await Meal.create({
-      userID,
+      userID: user._id,
       groupID,
       date,
       mealCount,
     });
 
-    res.status(201).json({
-      success: true,
-      message: "Meal created successfully",
-      data: meal,
-    });
+    res.status(201).json({ success: true, data: meal });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to create meal",
-      error: error.message,
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
@@ -37,75 +35,34 @@ exports.getMeals = async (req, res) => {
 
     const meals = await Meal.find(query).populate("userID", "displayName email");
 
-    res.status(200).json({
-      success: true,
-      data: meals,
-    });
+    res.status(200).json({ success: true, data: meals });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch meals",
-      error: error.message,
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// Update Meal
+// Update
 exports.updateMeal = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { mealCount } = req.body;
+    const meal = await Meal.findByIdAndUpdate(req.params.id, req.body, { new: true });
 
-    const meal = await Meal.findByIdAndUpdate(
-      id,
-      { mealCount },
-      { new: true }
-    );
+    if (!meal) return res.status(404).json({ success: false, message: "Not found" });
 
-    if (!meal) {
-      return res.status(404).json({
-        success: false,
-        message: "Meal not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Meal updated successfully",
-      data: meal,
-    });
+    res.json({ success: true, data: meal });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to update meal",
-      error: error.message,
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// Delete Meal
+// Delete
 exports.deleteMeal = async (req, res) => {
   try {
-    const { id } = req.params;
+    const meal = await Meal.findByIdAndDelete(req.params.id);
 
-    const meal = await Meal.findByIdAndDelete(id);
+    if (!meal) return res.status(404).json({ success: false });
 
-    if (!meal) {
-      return res.status(404).json({
-        success: false,
-        message: "Meal not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Meal deleted successfully",
-    });
+    res.json({ success: true });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to delete meal",
-      error: error.message,
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 };

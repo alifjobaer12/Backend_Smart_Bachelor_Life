@@ -1,113 +1,44 @@
 const Bazar = require("../models/bazar.model");
+const User = require("../models/user.model");
 
-//  Create Bazar Entry
 exports.createBazar = async (req, res) => {
   try {
-    const userID = req.user.uid; //  (firebase)
-    const { groupID, date, item, quantity, price, documentURL } = req.body;
+    const user = await User.findOne({ firebaseUid: req.user.uid });
 
     const bazar = await Bazar.create({
-      userID,
-      groupID,
-      date,
-      item,
-      quantity,
-      price,
-      documentURL,
+      userID: user._id,
+      ...req.body,
     });
 
-    res.status(201).json({
-      success: true,
-      message: "Bazar entry created successfully",
-      data: bazar,
-    });
+    res.status(201).json({ success: true, data: bazar });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to create bazar entry",
-      error: error.message,
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
-//  Get Bazar Entries
 exports.getBazar = async (req, res) => {
   try {
-    const { groupID, date } = req.query;
-
-    const query = { groupID };
-    if (date) query.date = date;
-
-    const bazars = await Bazar.find(query).populate("userID", "displayName email");
-
-    res.status(200).json({
-      success: true,
-      data: bazars,
-    });
+    const bazar = await Bazar.find(req.query).populate("userID", "displayName email");
+    res.json({ success: true, data: bazar });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch bazar entries",
-      error: error.message,
-    });
+    res.status(500).json({ success: false });
   }
 };
 
-//  Update Bazar Entry
 exports.updateBazar = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { item, quantity, price, documentURL } = req.body;
-
-    const bazar = await Bazar.findByIdAndUpdate(
-      id,
-      { item, quantity, price, documentURL },
-      { new: true }
-    );
-
-    if (!bazar) {
-      return res.status(404).json({
-        success: false,
-        message: "Bazar entry not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Bazar updated successfully",
-      data: bazar,
-    });
+    const bazar = await Bazar.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json({ success: true, data: bazar });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to update bazar",
-      error: error.message,
-    });
+    res.status(500).json({ success: false });
   }
 };
 
-//  Delete Bazar Entry
 exports.deleteBazar = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const bazar = await Bazar.findByIdAndDelete(id);
-
-    if (!bazar) {
-      return res.status(404).json({
-        success: false,
-        message: "Bazar entry not found",
-      });
-    }
-    res.status(200).json({
-      success: true,
-      message: "Bazar deleted successfully",
-    });
+    await Bazar.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to delete bazar",
-      error: error.message,
-    });
+    res.status(500).json({ success: false });
   }
 };
