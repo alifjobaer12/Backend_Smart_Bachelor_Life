@@ -16,5 +16,9 @@ const {
 //  Create group (manager)
 router.post("/", authUserMiddleware, createGroup);
 
+//  Join group
+router.post("/join", authUserMiddleware, joinGroup);
+
+
 
 module.exports = router;
