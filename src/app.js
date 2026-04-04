@@ -1,6 +1,22 @@
 const express = require("express");
 const cors = require("cors");
 const envConfig = require("./config/env.config");
+//routes require here
+const mealRoutes = require("./routes/meal.route");
+const menuRoutes = require("./routes/menu.route");
+const bazarRoutes = require("./routes/bazar.route");
+const expenseRoutes = require("./routes/expense.route");
+const groupRoutes = require("./routes/group.route");
+
+
+
+// routes
+app.use("/api/meals", mealRoutes);
+app.use("/api/menus", menuRoutes);
+app.use("/api/bazar", bazarRoutes);
+app.use("/api/expenses", expenseRoutes);
+app.use("/api/groups", groupRoutes);
+
 
 /**
  * 	Routes Requires
