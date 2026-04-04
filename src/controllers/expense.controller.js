@@ -117,3 +117,32 @@ exports.deleteExpense = async (req, res) => {
     });
   }
 };
+
+//  Summary (total expense)
+exports.getExpenseSummary = async (req, res) => {
+  try {
+    const { groupID } = req.query;
+
+    const expenses = await Expense.find({ groupID });
+
+    let totalExpense = 0;
+
+    expenses.forEach((e) => {
+      totalExpense += e.amount;
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalExpense,
+        totalEntries: expenses.length,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to calculate expense summary",
+      error: error.message,
+    });
+  }
+};
