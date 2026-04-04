@@ -52,3 +52,36 @@ exports.getBazar = async (req, res) => {
     });
   }
 };
+
+//  Update Bazar Entry
+exports.updateBazar = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { item, quantity, price, documentURL } = req.body;
+
+    const bazar = await Bazar.findByIdAndUpdate(
+      id,
+      { item, quantity, price, documentURL },
+      { new: true }
+    );
+
+    if (!bazar) {
+      return res.status(404).json({
+        success: false,
+        message: "Bazar entry not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Bazar updated successfully",
+      data: bazar,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to update bazar",
+      error: error.message,
+    });
+  }
+};
