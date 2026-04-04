@@ -2,21 +2,17 @@ const express = require("express");
 const cors = require("cors");
 const envConfig = require("./config/env.config");
 
-/**
- * 	Routes Requires
- * - test routes
- * - auth routes
- */
+// test route (optional)
 const testRouter =
 	envConfig.NODE_ENV === "development"
 		? require("./routes/route.test")
 		: null;
+
 const authRouter = require("./routes/auth.route");
 
-// Create an Express application
 const app = express();
 
-// Middlewares
+// middlewares
 app.use(express.json());
 
 const allowedOrigins = [
@@ -34,34 +30,27 @@ app.use(
 	})
 );
 
-// Routes import
+// routes
 const mealRoutes = require("./routes/meal.route");
 const menuRoutes = require("./routes/menu.route");
 const bazarRoutes = require("./routes/bazar.route");
-const authRouter = require("./routes/auth.route");
 
-// Routes use
 app.use("/api/meals", mealRoutes);
 app.use("/api/menus", menuRoutes);
 app.use("/api/bazar", bazarRoutes);
 app.use("/api/auth", authRouter);
 
-// Health check
+// test route
+if (envConfig.NODE_ENV === "development" && testRouter) {
+	app.use("/api/test", testRouter);
+}
+
+// health
 app.get("/health", (req, res) => {
 	res.status(200).json({
 		success: true,
 		message: "OK",
 	});
 });
-
-/**
- * 	Routes Use
- * - test routes
- * - auth routes
- */
-if (envConfig.NODE_ENV === "development" && testRouter) {
-	app.use("/api/test", testRouter);
-}
-app.use("/api/auth", authRouter);
 
 module.exports = app;
