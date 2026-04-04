@@ -4,44 +4,65 @@ const emailService = require("../services/email.service");
 
 const tokenBlackListModel = require("../models/tokenBlacklist.model");
 
+const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
+
 /**
  * - user registration controller
  * - POST /api/auth/register
  * - open to public
  */
 async function userRegisterController(req, res) {
-	const {
+	const logCtx = getLogContext(req);
+	const { firebaseUid, email, displayName, photoURL, provider, lastLoginAt } =
+		req.body;
+
+	logger.info("Auth register attempt", {
+		...logCtx,
 		firebaseUid,
 		email,
-		displayName,
-		photoURL,
-		role,
 		provider,
-		lastLoginAt,
-	} = req.body;
-
-	const isExistingUser = await userModel.findOne({
-		$or: [{ firebaseUid }, { email }],
 	});
 
-	if (isExistingUser) {
-		return res.status(422).json({
+	if (!firebaseUid || !email) {
+		return res.status(400).json({
 			success: false,
-			message:
-				"User with the provided firebaseUid or email already exists",
+			message: "firebaseUid and email are required",
 		});
 	}
 
 	try {
-		// Create a new user document in MongoDB
+		const isExistingUser = await userModel.findOne({
+			$or: [{ firebaseUid }, { email }],
+		});
+
+		if (isExistingUser) {
+			logger.warn("Auth register rejected: user already exists", {
+				...logCtx,
+				firebaseUid,
+				email,
+				existingUserId: isExistingUser._id,
+			});
+
+			return res.status(422).json({
+				success: false,
+				message:
+					"User with the provided firebaseUid or email already exists",
+			});
+		}
+
 		const newUser = await userModel.create({
 			firebaseUid,
 			email,
 			displayName,
 			photoURL,
-			role,
 			provider,
 			lastLoginAt,
+		});
+
+		logger.info("Auth register success", {
+			...logCtx,
+			userId: newUser._id,
+			email: newUser.email,
 		});
 
 		res.status(201).json({
@@ -50,13 +71,73 @@ async function userRegisterController(req, res) {
 			user: newUser,
 		});
 
-		// Send a welcome email to the new user
-		emailService.sendRegisreationEmail(email, displayName);
+		// async email, do not block response
+		emailService
+			.sendRegisreationEmail(email, displayName)
+			.catch((error) => {
+				logger.error("Registration email send failed", {
+					...logCtx,
+					email,
+					error: getErrorMeta(error),
+				});
+			});
 	} catch (error) {
-		console.error("Error registering user:", error);
+		logger.error("Auth register failed", {
+			...logCtx,
+			email,
+			firebaseUid,
+			error: getErrorMeta(error),
+		});
+
 		return res.status(500).json({
 			success: false,
 			message: "An error occurred while registering the user",
+		});
+	}
+}
+
+/**
+ * - manager registration controller (promote existing user to manager)
+ * - POST /api/auth/register-manager
+ * - protected route, requires valid Firebase ID token and member role
+ */
+async function managerRegisterController(req, res) {
+	const logCtx = getLogContext(req);
+
+	const user = userModel.findOne({ email: req.body.email });
+
+	if (!user) {
+		return res.status(404).json({
+			success: false,
+			message: "User not found",
+		});
+	}
+
+	try {
+		user.role = "MANAGER";
+		await user.save();
+
+		logger.info("Manager role assigned successfully", {
+			...logCtx,
+			userId: user._id,
+			email: user.email,
+		});
+
+		return res.status(200).json({
+			success: true,
+			message: "User promoted to manager successfully",
+			user,
+		});
+	} catch (error) {
+		logger.error("Error promoting user to manager", {
+			...logCtx,
+			userId: user._id,
+			email: user.email,
+			error: getErrorMeta(error),
+		});
+		return res.status(500).json({
+			success: false,
+			message: "An error occurred while promoting the user to manager",
 		});
 	}
 }
@@ -67,43 +148,61 @@ async function userRegisterController(req, res) {
  * - protected route, requires valid Firebase ID token
  */
 async function userLoginController(req, res) {
-	const { email } = req.user;
+	const logCtx = getLogContext(req);
+	const email = req.user?.email;
+	const uid = req.user?.uid;
+
+	logger.info("Auth login attempt", { ...logCtx });
 
 	if (!email) {
+		logger.warn("Auth login rejected: missing email in token", {
+			...logCtx,
+		});
 		return res.status(400).json({
 			success: false,
 			message: "Email is missing for login",
 		});
 	}
 
-	if (email !== req.user.email) {
-		return res.status(401).json({
-			success: false,
-			message: "Unauthorized: Email mismatch",
-		});
-	}
-
-	const user = await userModel.findOne({
-		$or: [{ firebaseUid: req.user.uid }, { email: req.user.email }],
-	});
-
-	if (!user) {
-		return res.status(404).json({
-			success: false,
-			message: "User not found",
-		});
-	}
-
 	try {
+		const user = await userModel.findOne({
+			$or: [{ firebaseUid: uid }, { email }],
+		});
+
+		if (!user) {
+			logger.warn("Auth login rejected: user not found", {
+				...logCtx,
+				email,
+				uid,
+			});
+			return res.status(404).json({
+				success: false,
+				message: "User not found",
+			});
+		}
+
 		user.lastLoginAt = new Date();
 		await user.save();
+
+		logger.info("Auth login success", {
+			...logCtx,
+			userId: user._id,
+			email: user.email,
+		});
+
 		return res.status(200).json({
 			success: true,
 			message: "User logged in successfully",
 			user,
 		});
 	} catch (error) {
-		console.error("Error logging in user:", error);
+		logger.error("Auth login failed", {
+			...logCtx,
+			email,
+			uid,
+			error: getErrorMeta(error),
+		});
+
 		return res.status(500).json({
 			success: false,
 			message: "An error occurred while logging in the user",
@@ -118,27 +217,59 @@ async function userLoginController(req, res) {
  * - blacklists the token to prevent further use
  */
 async function userLogoutController(req, res) {
+	const logCtx = getLogContext(req);
 	const token = req.headers.authorization?.split(" ")[1];
 
+	logger.info("Auth logout attempt", { ...logCtx });
+
 	if (!token) {
+		logger.warn("Auth logout skipped: no bearer token", { ...logCtx });
 		return res.status(400).json({
 			success: false,
 			message: "Already logged out",
 		});
 	}
 
-	await tokenBlackListModel.create({
-		token,
-	});
+	try {
+		await tokenBlackListModel.create({ token });
 
-	res.status(200).json({
-		success: true,
-		message: "User logged out successfully",
-	});
+		logger.info("Auth logout success", {
+			...logCtx,
+			tokenPresent: true,
+		});
+
+		return res.status(200).json({
+			success: true,
+			message: "User logged out successfully",
+		});
+	} catch (error) {
+		// Handle duplicate token blacklist insertion (if unique index exists)
+		if (error?.code === 11000) {
+			logger.warn("Auth logout duplicate blacklist entry", {
+				...logCtx,
+				error: getErrorMeta(error),
+			});
+			return res.status(200).json({
+				success: true,
+				message: "User logged out successfully",
+			});
+		}
+
+		logger.error("Auth logout failed", {
+			...logCtx,
+			error: getErrorMeta(error),
+		});
+
+		return res.status(500).json({
+			success: false,
+			message: "An error occurred while logging out the user",
+		});
+	}
 }
 
 module.exports = {
 	userRegisterController,
 	userLoginController,
 	userLogoutController,
+	managerRegisterController,
 };

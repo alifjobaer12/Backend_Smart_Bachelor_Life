@@ -2,6 +2,8 @@ const { createClient } = require("redis");
 
 const envConfig = require("./env.config");
 
+const { logger } = require("../utils/logger.util");
+
 let client;
 
 const connectRedis = async () => {
@@ -13,15 +15,15 @@ const connectRedis = async () => {
 		});
 
 		client.on("error", (err) => {
-			console.error("Redis Client Error:", err.message);
+			logger.error("Redis Client Error:", err.message);
 		});
 
 		await client.connect();
-		console.log("✔️  Redis connected successfully");
+		logger.info("✔️  Redis connected successfully");
 
 		return client;
-	} catch (error) {
-		console.error("Redis connection error:", error.message);
+	} catch (err) {
+		logger.error("Error connecting to Redis:", err.message);
 		process.exit(1);
 	}
 };
@@ -38,7 +40,7 @@ const getRedisClient = () => {
 const disconnectRedis = async () => {
 	if (client) {
 		await client.disconnect();
-		console.log("✔️  Redis disconnected");
+		logger.info("✔️  Redis disconnected successfully");
 	}
 };
 

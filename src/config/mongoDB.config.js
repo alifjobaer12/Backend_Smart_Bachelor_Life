@@ -2,15 +2,17 @@ const mongoose = require("mongoose");
 
 const envConfig = require("./env.config");
 
+const { logger } = require("../utils/logger.util");
+
 // Function to connect to MongoDB
 const connectDB = async () => {
 	await mongoose
 		.connect(envConfig.MONGO_URI)
 		.then(() => {
-			console.log("✔️  MongoDB connected successfully");
+			logger.info("✔️  MongoDB connected successfully");
 		})
 		.catch((err) => {
-			console.error("Error connecting to MongoDB:", err);
+			logger.error("MongoDB connection failed:", err.message);
 			process.exit(1);
 		});
 };

@@ -2,6 +2,8 @@ const firebaseAdmin = require("firebase-admin");
 
 const envConfig = require("./env.config");
 
+const { logger } = require("../utils/logger.util");
+
 // Initialize Firebase Admin SDK
 try {
 	firebaseAdmin.initializeApp({
@@ -11,9 +13,10 @@ try {
 			privateKey: envConfig.FIREBASE_PRIVATE_KEY,
 		}),
 	});
-	console.log("✔️  Firebase connected successfully");
-} catch (error) {
-	console.error("Firebase connection failed:", error);
+	logger.info("✔️  Firebase Admin SDK initialized successfully");
+} catch (err) {
+	logger.error("Error initializing Firebase Admin SDK:", err.message);
+	process.exit(1);
 }
 
 module.exports = firebaseAdmin;

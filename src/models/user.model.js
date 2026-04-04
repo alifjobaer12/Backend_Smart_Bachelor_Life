@@ -64,6 +64,8 @@ const userSchema = new mongoose.Schema(
 	},
 );
 
+userSchema.index({ firebaseUid: 1, email: 1 });
+
 const userModel = mongoose.model("user", userSchema);
 
 module.exports = userModel;
