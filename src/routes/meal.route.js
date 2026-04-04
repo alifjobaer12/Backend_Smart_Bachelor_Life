@@ -9,21 +9,12 @@ const {
   getMealSummary,
 } = require("../controllers/meal.controller");
 
-const authMiddleware = require("../middlewares/auth.middleware");
+const { authUserMiddleware } = require("../middlewares/auth.middleware");
 
 
-router.post("/", authMiddleware, createMeal);
-
-
-router.get("/", authMiddleware, getMeals);
-
-
-router.patch("/:id", authMiddleware, updateMeal);
-
-
-router.delete("/:id", authMiddleware, deleteMeal);
-
-
-router.get("/summary", authMiddleware, getMealSummary);
+router.post("/", authUserMiddleware, createMeal);
+router.get("/", authUserMiddleware, getMeals);
+router.patch("/:id", authUserMiddleware, updateMeal);
+router.delete("/:id", authUserMiddleware, deleteMeal);
 
 module.exports = router;
