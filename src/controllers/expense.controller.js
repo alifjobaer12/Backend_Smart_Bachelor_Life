@@ -57,3 +57,36 @@ exports.getExpenses = async (req, res) => {
     });
   }
 };
+
+//  Update Expense
+exports.updateExpense = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, amount, category, date, documentURL } = req.body;
+
+    const expense = await Expense.findByIdAndUpdate(
+      id,
+      { title, amount, category, date, documentURL },
+      { new: true }
+    );
+
+    if (!expense) {
+      return res.status(404).json({
+        success: false,
+        message: "Expense not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Expense updated successfully",
+      data: expense,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to update expense",
+      error: error.message,
+    });
+  }
+};
