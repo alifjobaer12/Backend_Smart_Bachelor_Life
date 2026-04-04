@@ -6,7 +6,6 @@ const groupController = require("../controllers/group.controller");
 
 const groupRouter = express.Router();
 
-
 groupRouter.post(
 	"/",
 	authMiddleware.authManagerMiddleware,
@@ -42,7 +41,6 @@ groupRouter.get(
 	authMiddleware.authUserMiddleware,
 	groupController.getGroupDetailsForMember,
 );
-
 
 groupRouter.post(
 	"/change-role",
