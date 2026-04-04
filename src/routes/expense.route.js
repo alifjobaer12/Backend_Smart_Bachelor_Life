@@ -44,6 +44,7 @@ router.patch("/:id", authManagerMiddleware, updateExpense);
 //  Delete (manager)
 router.delete("/:id", authManagerMiddleware, deleteExpense);
 
-
+//  Summary
+router.get("/summary", authUserMiddleware, getExpenseSummary);
 
 module.exports = router;
