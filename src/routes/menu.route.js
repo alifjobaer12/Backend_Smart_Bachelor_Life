@@ -15,3 +15,7 @@ const {
 
 //  Create for manager only
 router.post("/", authManagerMiddleware, createMenu);
+
+//  Read for all users
+router.get("/", authUserMiddleware, getMenus);
+
