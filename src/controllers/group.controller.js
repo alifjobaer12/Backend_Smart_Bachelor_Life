@@ -89,3 +89,25 @@ exports.joinGroup = async (req, res) => {
     });
   }
 };
+
+//  Get My Group
+exports.getMyGroup = async (req, res) => {
+  try {
+    const user = await User.findOne({ firebaseUid: req.user.uid });
+
+    const group = await Group.findOne({
+      users: user._id,
+    }).populate("users", "displayName email");
+
+    res.status(200).json({
+      success: true,
+      data: group,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch group",
+      error: error.message,
+    });
+  }
+};
