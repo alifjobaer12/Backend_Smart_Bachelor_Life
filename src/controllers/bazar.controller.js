@@ -99,7 +99,6 @@ exports.deleteBazar = async (req, res) => {
         message: "Bazar entry not found",
       });
     }
-
     res.status(200).json({
       success: true,
       message: "Bazar deleted successfully",
