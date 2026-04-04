@@ -25,3 +25,8 @@ router.patch("/:id", authManagerMiddleware, updateBazar);
 
 //  Delete (manager)
 router.delete("/:id", authManagerMiddleware, deleteBazar);
+
+//  Summary
+router.get("/summary", authUserMiddleware, getBazarSummary);
+
+module.exports = router;
