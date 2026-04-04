@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const { logger } = require("../utils/logger.util");
 
 /**
  * - create a transporter object using the Gmail service and OAuth2 authentication
@@ -18,9 +19,11 @@ const transporter = nodemailer.createTransport({
 // Verify the connection configuration
 transporter.verify((error, success) => {
 	if (error) {
-		console.error("Error connecting to email server:", error);
+		logger.error("Email server connection failed:", {
+			error: getErrorMeta(error),
+		});
 	} else {
-		console.log("✔️  Email server is ready to send messages");
+		logger.info("✔️  Email server is ready to send messages");
 	}
 });
 
@@ -35,10 +38,13 @@ const sendEmail = async (to, subject, text, html) => {
 			html, // html body
 		});
 
-		console.log("Message sent: %s", info.messageId);
-		console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+		logger.info("Message sent: %s", info.messageId);
 	} catch (error) {
-		console.error("Error sending email:", error);
+		logger.error("Failed to send email:", {
+			to,
+			subject,
+			error: getErrorMeta(error),
+		});
 	}
 };
 
