@@ -29,3 +29,26 @@ exports.createBazar = async (req, res) => {
     });
   }
 };
+
+//  Get Bazar Entries
+exports.getBazar = async (req, res) => {
+  try {
+    const { groupID, date } = req.query;
+
+    const query = { groupID };
+    if (date) query.date = date;
+
+    const bazars = await Bazar.find(query).populate("userID", "displayName email");
+
+    res.status(200).json({
+      success: true,
+      data: bazars,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch bazar entries",
+      error: error.message,
+    });
+  }
+};
