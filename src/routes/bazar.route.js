@@ -23,3 +23,5 @@ router.get("/", authUserMiddleware, getBazar);
 //  Update (manager)
 router.patch("/:id", authManagerMiddleware, updateBazar);
 
+//  Delete (manager)
+router.delete("/:id", authManagerMiddleware, deleteBazar);
