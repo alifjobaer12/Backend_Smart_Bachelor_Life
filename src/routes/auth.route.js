@@ -14,6 +14,17 @@ const authRouter = express.Router();
 authRouter.post("/register", authController.userRegisterController);
 
 /**
+ * - POST /api/auth/manager-register
+ * - user registration with manager role
+ * - protected route, requires valid Firebase ID token
+ */
+authRouter.post(
+	"/manager-register",
+	authMiddleware.authUserMiddleware,
+	authController.managerRegisterController,
+);
+
+/**
  * - POST /api/auth/login
  * - user login
  * - protected route, requires valid Firebase ID token
