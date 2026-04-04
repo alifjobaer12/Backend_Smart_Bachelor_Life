@@ -22,6 +22,7 @@ router.post("/join", authUserMiddleware, joinGroup);
 router.get("/me", authUserMiddleware, getMyGroup);
 
 
-
+//  Get members
+router.get("/:groupID/members", authUserMiddleware, getGroupMembers);
 
 module.exports = router;
