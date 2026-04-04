@@ -22,3 +22,7 @@ router.get("/", authUserMiddleware, getMenus);
 //  Update for manager only
 router.patch("/:id", authManagerMiddleware, updateMenu);
 
+//  Delete for manager only
+router.delete("/:id", authManagerMiddleware, deleteMenu);
+
+module.exports = router;
