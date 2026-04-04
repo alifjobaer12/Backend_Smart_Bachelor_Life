@@ -19,3 +19,6 @@ router.post("/", authManagerMiddleware, createMenu);
 //  Read for all users
 router.get("/", authUserMiddleware, getMenus);
 
+//  Update for manager only
+router.patch("/:id", authManagerMiddleware, updateMenu);
+
