@@ -85,3 +85,25 @@ exports.deleteMeal = asyncHandler(async (req, res) => {
     message: "Meal deleted successfully",
   });
 });
+
+
+//  Group summary - total meals and total entries for a group
+exports.getMealSummary = asyncHandler(async (req, res) => {
+  const { groupID } = req.query;
+
+  const meals = await Meal.find({ groupID });
+
+  let totalMeals = 0;
+
+  meals.forEach((m) => {
+    totalMeals += m.mealCount;
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      totalMeals,
+      totalEntries: meals.length,
+    },
+  });
+});
