@@ -38,3 +38,8 @@ router.post("/", authManagerMiddleware, createExpense);
 //  Read (all users)
 router.get("/", authUserMiddleware, getExpenses);
 
+//  Update (manager)
+router.patch("/:id", authManagerMiddleware, updateExpense);
+
+
+module.exports = router;
