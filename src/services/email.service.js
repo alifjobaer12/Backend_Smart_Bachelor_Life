@@ -107,6 +107,110 @@ async function sendRegisreationEmail(userEmail, name) {
 	await sendEmail(userEmail, subject, text, html);
 }
 
+async function sendJoinCodeEmail(userEmail, name, groupTitle, joinCode) {
+	const subject = `Invitation to join ${groupTitle} on Smart Bachelor Life`;
+	const text = `Dear ${name},\n\nYou have been invited to join the group "${groupTitle}" on Smart Bachelor Life. Use the following join code to access the group:\n\nJoin Code: ${joinCode}\n\nWith Smart Bachelor Life, you can organize daily living, track expenses, and stay on top of shared responsibilities with ease.\n\nIf you did not expect this invitation, please ignore this email.\n\nBest regards,\nSmart Bachelor Life Support Team`;
+	const html = `
+		<div style="margin:0;padding:28px 14px;background:#eef3ff;font-family:'Segoe UI',Tahoma,Arial,sans-serif;color:#0f172a;">
+			<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:680px;margin:0 auto;">
+				<tr>
+					<td>
+						<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:linear-gradient(135deg,#1d4ed8 0%,#0ea5e9 100%);border-radius:18px 18px 0 0;">
+							<tr>
+								<td style="padding:28px 28px 20px;">
+									<p style="margin:0 0 8px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#dbeafe;">Group Invitation</p>
+									<h1 style="margin:0;font-size:30px;line-height:1.2;color:#ffffff;font-weight:700;">You are invited to join ${groupTitle}</h1>
+									<p style="margin:12px 0 0;font-size:15px;line-height:1.6;color:#e0f2fe;">Join your group and start managing shared tasks, meals, and expenses together.</p>
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#ffffff;border:1px solid #dbe4ff;border-top:none;border-radius:0 0 18px 18px;overflow:hidden;">
+							<tr>
+								<td style="padding:28px;">
+									<p style="margin:0 0 14px;font-size:17px;line-height:1.6;color:#1e293b;">Hi ${name},</p>
+									<p style="margin:0 0 14px;font-size:16px;line-height:1.7;color:#334155;">You were invited to join the group <strong>${groupTitle}</strong> on Smart Bachelor Life. Use the join code below to enter the group.</p>
+									<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:16px 0 20px;">
+										<tr>
+											<td style="background:#f8fafc;border:1px dashed #94a3b8;border-radius:12px;padding:18px;text-align:center;">
+												<p style="margin:0 0 8px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#64748b;">Join Code</p>
+												<p style="margin:0;font-size:30px;line-height:1.2;font-weight:800;letter-spacing:3px;color:#0f172a;">${joinCode}</p>
+											</td>
+										</tr>
+									</table>
+									<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:4px auto 20px;">
+										<tr>
+											<td style="border-radius:10px;background:#1d4ed8;">
+												<a href="https://smart-bachelor-life.web.app/dashboard" style="display:inline-block;padding:12px 20px;font-size:15px;font-weight:700;line-height:1;color:#ffffff;text-decoration:none;">Open Dashboard</a>
+											</td>
+										</tr>
+									</table>
+									<p style="margin:0 0 10px;font-size:14px;line-height:1.7;color:#64748b;">If you did not expect this invitation, you can safely ignore this email.</p>
+									<p style="margin:18px 0 0;font-size:15px;line-height:1.7;color:#334155;">Best regards,<br><strong>Smart Bachelor Life Support Team</strong></p>
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+			</table>
+		</div>
+	`;
+
+	await sendEmail(userEmail, subject, text, html);
+}
+
+async function sendUserRemovalEmail(userEmail, name, groupTitle) {
+	const subject = `You have been removed from ${groupTitle} on Smart Bachelor Life`;
+	const text = `Dear ${name},\n\nYou have been removed from the group "${groupTitle}" on Smart Bachelor Life. If you believe this was a mistake or have any questions, please contact your group manager.\n\nBest regards,\nSmart Bachelor Life Support Team`;
+	const html = `
+		<div style="margin:0;padding:28px 14px;background:#fff4f4;font-family:'Segoe UI',Tahoma,Arial,sans-serif;color:#0f172a;">
+			<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:680px;margin:0 auto;">
+				<tr>
+					<td>
+						<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:linear-gradient(135deg,#b91c1c 0%,#ef4444 100%);border-radius:18px 18px 0 0;">
+							<tr>
+								<td style="padding:28px 28px 20px;">
+									<p style="margin:0 0 8px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#fee2e2;">Membership Update</p>
+									<h1 style="margin:0;font-size:28px;line-height:1.2;color:#ffffff;font-weight:700;">You were removed from ${groupTitle}</h1>
+									<p style="margin:12px 0 0;font-size:15px;line-height:1.6;color:#ffe4e6;">This notification confirms that your access to this group has been removed.</p>
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#ffffff;border:1px solid #fecaca;border-top:none;border-radius:0 0 18px 18px;overflow:hidden;">
+							<tr>
+								<td style="padding:28px;">
+									<p style="margin:0 0 14px;font-size:17px;line-height:1.6;color:#1e293b;">Hi ${name},</p>
+									<p style="margin:0 0 14px;font-size:16px;line-height:1.7;color:#334155;">You have been removed from the group <strong>${groupTitle}</strong> on Smart Bachelor Life.</p>
+									<p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#475569;">If you believe this was a mistake or need more information, please contact your group manager.</p>
+									<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:6px auto 20px;">
+										<tr>
+											<td style="border-radius:10px;background:#0f766e;">
+												<a href="https://smart-bachelor-life.web.app/dashboard" style="display:inline-block;padding:12px 20px;font-size:15px;font-weight:700;line-height:1;color:#ffffff;text-decoration:none;">Go to Dashboard</a>
+											</td>
+										</tr>
+									</table>
+									<p style="margin:0;font-size:14px;line-height:1.7;color:#64748b;">Best regards,<br><strong>Smart Bachelor Life Support Team</strong></p>
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+			</table>
+		</div>
+	`;
+
+	await sendEmail(userEmail, subject, text, html);
+}
+
 module.exports = {
 	sendRegisreationEmail,
+	sendJoinCodeEmail,
+	sendUserRemovalEmail,
 };
