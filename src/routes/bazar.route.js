@@ -19,3 +19,7 @@ router.post("/", authManagerMiddleware, createBazar);
 
 //  Read (all users)
 router.get("/", authUserMiddleware, getBazar);
+
+//  Update (manager)
+router.patch("/:id", authManagerMiddleware, updateBazar);
+
