@@ -20,3 +20,6 @@ router.get("/", authMiddleware, getMeals);
 
 router.patch("/:id", authMiddleware, updateMeal);
 
+
+router.delete("/:id", authMiddleware, deleteMeal);
+
