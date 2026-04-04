@@ -41,3 +41,26 @@ exports.createGroup = async (req, res) => {
     });
   }
 };
+
+//  Join Group
+exports.joinGroup = async (req, res) => {
+  try {
+    const user = await User.findOne({ firebaseUid: req.user.uid });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const { code } = req.body;
+
+    const group = await Group.findOne({ uniqueCode: code });
+
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: "Invalid group code",
+      });
+    }
