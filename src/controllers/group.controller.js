@@ -64,3 +64,28 @@ exports.joinGroup = async (req, res) => {
         message: "Invalid group code",
       });
     }
+
+    //  duplicate join check
+    if (group.users.includes(user._id)) {
+      return res.status(400).json({
+        success: false,
+        message: "User already in group",
+      });
+    }
+
+    group.users.push(user._id);
+    await group.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Joined group successfully",
+      data: group,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to join group",
+      error: error.message,
+    });
+  }
+};
