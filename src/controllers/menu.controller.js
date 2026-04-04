@@ -84,3 +84,30 @@ exports.updateMenu = async (req, res) => {
     });
   }
 };
+
+// Delete Menu
+exports.deleteMenu = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const menu = await Menu.findByIdAndDelete(id);
+
+    if (!menu) {
+      return res.status(404).json({
+        success: false,
+        message: "Menu not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Menu deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete menu",
+      error: error.message,
+    });
+  }
+};
