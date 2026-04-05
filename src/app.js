@@ -14,6 +14,7 @@ const {
  * - auth routes
  * - expenses routes
  * - group routes
+ * - payment routes
  */
 const testRouter =
 	envConfig.NODE_ENV === "development"
@@ -22,6 +23,7 @@ const testRouter =
 const authRouter = require("./routes/auth.route");
 const expensesRouter = require("./routes/expenses.route");
 const groupRouter = require("./routes/group.route");
+const paymentRouter = require("./routes/payment.route");
 
 // Create an Express application
 const app = express();
@@ -74,6 +76,7 @@ app.get("/api/docs.json", (req, res) => {
  * - auth routes
  * - expenses routes
  * - group routes
+ * - payment routes
  */
 if (envConfig.NODE_ENV === "development" && testRouter) {
 	app.use("/api/test", testRouter);
@@ -81,5 +84,6 @@ if (envConfig.NODE_ENV === "development" && testRouter) {
 app.use("/api/auth", authRouter);
 app.use("/api/expenses", expensesRouter);
 app.use("/api/group", groupRouter);
+app.use("/api/payment", paymentRouter);
 
 module.exports = app;

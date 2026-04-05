@@ -30,6 +30,10 @@ const paymentSchema = new mongoose.Schema({
 		trim: true,
 		default: "",
 		immutable: [true, "transactionID cannot be changed once set"],
+		unique: [
+			true,
+			"transactionID must be unique, a payment with this transactionID already exists",
+		],
 	},
 	status: {
 		type: String,
@@ -41,6 +45,8 @@ const paymentSchema = new mongoose.Schema({
 		},
 		default: "PENDING",
 	},
+}, {
+	timestamps: true,
 });
 
 const paymentModel = mongoose.model("payment", paymentSchema);
