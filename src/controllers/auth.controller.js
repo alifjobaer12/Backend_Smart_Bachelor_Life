@@ -150,7 +150,7 @@ async function managerRegisterController(req, res) {
 async function userLoginController(req, res) {
 	const logCtx = getLogContext(req);
 	const email = req.user?.email;
-	const uid = req.user?.uid;
+	const uid = req.user?.firebaseUid;
 
 	logger.info("Auth login attempt", { ...logCtx });
 
@@ -218,7 +218,9 @@ async function userLoginController(req, res) {
  */
 async function userLogoutController(req, res) {
 	const logCtx = getLogContext(req);
-	const token = req.headers.authorization?.split(" ")[1];
+	const token = authHeader?.startsWith("Bearer ")
+		? authHeader.split(" ")[1]
+		: null;
 
 	logger.info("Auth logout attempt", { ...logCtx });
 

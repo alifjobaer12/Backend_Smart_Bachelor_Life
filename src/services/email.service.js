@@ -1,6 +1,8 @@
 const nodemailer = require("nodemailer");
 const { logger } = require("../utils/logger.util");
 
+const envConfig = require("../config/env.config");
+
 /**
  * - create a transporter object using the Gmail service and OAuth2 authentication
  * - the transporter will be used to send emails from the application
@@ -9,10 +11,10 @@ const transporter = nodemailer.createTransport({
 	service: "gmail",
 	auth: {
 		type: "OAuth2",
-		user: process.env.EMAIL_USER,
-		clientId: process.env.CLIENT_ID,
-		clientSecret: process.env.CLIENT_SECRET,
-		refreshToken: process.env.REFRESH_TOKEN,
+		user: envConfig.EMAIL_USER,
+		clientId: envConfig.CLIENT_ID,
+		clientSecret: envConfig.CLIENT_SECRET,
+		refreshToken: envConfig.REFRESH_TOKEN,
 	},
 });
 
@@ -31,7 +33,7 @@ transporter.verify((error, success) => {
 const sendEmail = async (to, subject, text, html) => {
 	try {
 		const info = await transporter.sendMail({
-			from: `"SBL" <${process.env.EMAIL_USER}>`, // sender address
+			from: `"SBL" <${envConfig.EMAIL_USER}>`, // sender address
 			to, // list of receivers
 			subject, // Subject line
 			text, // plain text body
