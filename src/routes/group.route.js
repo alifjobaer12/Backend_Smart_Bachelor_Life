@@ -1,6 +1,7 @@
 const express = require("express");
 
 const authMiddleware = require("../middlewares/auth.middleware");
+const cacheMiddleware = require("../middlewares/cache.middleware");
 
 const groupController = require("../controllers/group.controller");
 
@@ -14,6 +15,7 @@ const groupRouter = express.Router();
 groupRouter.post(
 	"/",
 	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["group", "expenses", "payment"]),
 	groupController.createGroup,
 );
 
@@ -25,6 +27,7 @@ groupRouter.post(
 groupRouter.post(
 	"/send-join-code",
 	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["group"]),
 	groupController.sendJoinCode,
 );
 
@@ -36,6 +39,7 @@ groupRouter.post(
 groupRouter.post(
 	"/join",
 	authMiddleware.authUserMiddleware,
+	cacheMiddleware.invalidateCache(["group", "expenses", "payment"]),
 	groupController.joinByJoinCode,
 );
 
@@ -47,6 +51,7 @@ groupRouter.post(
 groupRouter.post(
 	"/remove-user",
 	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["group", "expenses", "payment"]),
 	groupController.removeUserFromGroup,
 );
 
@@ -58,6 +63,7 @@ groupRouter.post(
 groupRouter.get(
 	"/details",
 	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.getFromCache("group", 120),
 	groupController.getGroupDetails,
 );
 
@@ -69,6 +75,7 @@ groupRouter.get(
 groupRouter.get(
 	"/details/:groupId",
 	authMiddleware.authUserMiddleware,
+	cacheMiddleware.getFromCache("group", 120),
 	groupController.getGroupDetailsForMember,
 );
 
@@ -80,6 +87,7 @@ groupRouter.get(
 groupRouter.post(
 	"/change-role",
 	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["group", "expenses", "payment"]),
 	groupController.chengeUserRole,
 );
 
