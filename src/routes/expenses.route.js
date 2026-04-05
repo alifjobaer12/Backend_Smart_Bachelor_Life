@@ -3,6 +3,7 @@ const express = require("express");
 const expenseController = require("../controllers/expenses.controller");
 
 const authMiddleware = require("../middlewares/auth.middleware");
+const casheMiddleware = require("../middlewares/cache.middleware");
 
 const multer = require("multer");
 const uplode = multer({ storage: multer.memoryStorage() });
@@ -18,6 +19,7 @@ const expenseRouter = express.Router();
 expenseRouter.post(
 	"/",
 	authMiddleware.authManagerMiddleware,
+	casheMiddleware.invalidateCache(["expenses"]),
 	uplode.single("file"),
 	expenseController.createExpense,
 );
@@ -30,6 +32,7 @@ expenseRouter.post(
 expenseRouter.get(
 	"/",
 	authMiddleware.authUserMiddleware,
+	casheMiddleware.getFromCache("expenses", 120),
 	expenseController.getExpenses,
 );
 
