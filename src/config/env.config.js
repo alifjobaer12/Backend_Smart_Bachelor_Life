@@ -65,6 +65,29 @@ if (!process.env.IMAGEKIT_URL_ENDPOINT) {
 	);
 }
 
+if (!process.env.EMAIL_USER) {
+	logger.warn(
+		"EMAIL_USER is not defined. Outgoing email features will be disabled.",
+	);
+}
+
+if (!process.env.EMAIL_PASS) {
+	logger.warn(
+		"EMAIL_PASS is not defined. If OAuth2 is not configured, email sending may fail.",
+	);
+}
+
+if (
+	!process.env.EMAIL_PASS &&
+	(!process.env.CLIENT_ID ||
+		!process.env.CLIENT_SECRET ||
+		!process.env.REFRESH_TOKEN)
+) {
+	logger.warn(
+		"OAuth2 email variables are incomplete. Set CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN or provide EMAIL_PASS.",
+	);
+}
+
 const envConfig = {
 	NODE_ENV: process.env.NODE_ENV || "development",
 	CLIENT_URL: process.env.CLIENT_URL,
@@ -80,6 +103,11 @@ const envConfig = {
 	IMAGEKIT_PRIVATE_KEY: process.env.IMAGEKIT_PRIVATE_KEY,
 	IMAGEKIT_PUBLIC_KEY: process.env.IMAGEKIT_PUBLIC_KEY,
 	IMAGEKIT_URL_ENDPOINT: process.env.IMAGEKIT_URL_ENDPOINT,
+	EMAIL_USER: process.env.EMAIL_USER,
+	EMAIL_PASS: process.env.EMAIL_PASS,
+	CLIENT_ID: process.env.CLIENT_ID,
+	CLIENT_SECRET: process.env.CLIENT_SECRET,
+	REFRESH_TOKEN: process.env.REFRESH_TOKEN,
 };
 
 module.exports = envConfig;

@@ -44,6 +44,11 @@ const userSchema = new mongoose.Schema(
 			select: false,
 			default: "USER",
 		},
+		roleSelectionCompleted: {
+			type: Boolean,
+			select: false,
+			default: false,
+		},
 		provider: {
 			type: String,
 			trim: true,

@@ -1,36 +1,68 @@
 const nodemailer = require("nodemailer");
-const { logger } = require("../utils/logger.util");
+const { logger, getErrorMeta } = require("../utils/logger.util");
 
 const envConfig = require("../config/env.config");
 
-/**
- * - create a transporter object using the Gmail service and OAuth2 authentication
- * - the transporter will be used to send emails from the application
- */
-const transporter = nodemailer.createTransport({
-	service: "gmail",
-	auth: {
-		type: "OAuth2",
-		user: envConfig.EMAIL_USER,
-		clientId: envConfig.CLIENT_ID,
-		clientSecret: envConfig.CLIENT_SECRET,
-		refreshToken: envConfig.REFRESH_TOKEN,
-	},
-});
-
-// Verify the connection configuration
-transporter.verify((error, success) => {
-	if (error) {
-		logger.error("Email server connection failed:", {
-			error: getErrorMeta(error),
-		});
-	} else {
-		logger.info("✔️  Email server is ready to send messages");
+function createTransporter() {
+	if (!envConfig.EMAIL_USER) {
+		logger.warn("Email transporter disabled: EMAIL_USER is missing");
+		return null;
 	}
-});
+
+	if (envConfig.EMAIL_PASS) {
+		return nodemailer.createTransport({
+			service: "gmail",
+			auth: {
+				user: envConfig.EMAIL_USER,
+				pass: envConfig.EMAIL_PASS,
+			},
+		});
+	}
+
+	if (
+		envConfig.CLIENT_ID &&
+		envConfig.CLIENT_SECRET &&
+		envConfig.REFRESH_TOKEN
+	) {
+		return nodemailer.createTransport({
+			service: "gmail",
+			auth: {
+				type: "OAuth2",
+				user: envConfig.EMAIL_USER,
+				clientId: envConfig.CLIENT_ID,
+				clientSecret: envConfig.CLIENT_SECRET,
+				refreshToken: envConfig.REFRESH_TOKEN,
+			},
+		});
+	}
+
+	logger.warn(
+		"Email transporter disabled: configure EMAIL_PASS or OAuth2 credentials",
+	);
+
+	return null;
+}
+
+const transporter = createTransporter();
+
+if (transporter) {
+	transporter.verify((error) => {
+		if (error) {
+			logger.error("Email server connection failed", {
+				error: getErrorMeta(error),
+			});
+		} else {
+			logger.info("Email server is ready to send messages");
+		}
+	});
+}
 
 // Function to send email
 const sendEmail = async (to, subject, text, html) => {
+	if (!transporter) {
+		throw new Error("Email transporter is not configured");
+	}
+
 	try {
 		const info = await transporter.sendMail({
 			from: `"SBL" <${envConfig.EMAIL_USER}>`, // sender address
@@ -41,12 +73,15 @@ const sendEmail = async (to, subject, text, html) => {
 		});
 
 		logger.info("Message sent: %s", info.messageId);
+		return info;
 	} catch (error) {
-		logger.error("Failed to send email:", {
+		logger.error("Failed to send email", {
 			to,
 			subject,
 			error: getErrorMeta(error),
 		});
+
+		throw error;
 	}
 };
 
