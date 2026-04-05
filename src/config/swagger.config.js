@@ -33,19 +33,39 @@ const options = {
 					type: "object",
 					properties: {
 						success: { type: "boolean", example: false },
-						message: { type: "string", example: "Something went wrong" },
+						message: {
+							type: "string",
+							example: "Something went wrong",
+						},
 					},
 					required: ["success", "message"],
 				},
 				User: {
 					type: "object",
 					properties: {
-						_id: { type: "string", example: "67f2de9f4e4d9c7ad9a9a111" },
-						firebaseUid: { type: "string", example: "firebase_uid_123" },
-						email: { type: "string", format: "email", example: "user@example.com" },
+						_id: {
+							type: "string",
+							example: "67f2de9f4e4d9c7ad9a9a111",
+						},
+						firebaseUid: {
+							type: "string",
+							example: "firebase_uid_123",
+						},
+						email: {
+							type: "string",
+							format: "email",
+							example: "user@example.com",
+						},
 						displayName: { type: "string", example: "John Doe" },
-						photoURL: { type: "string", example: "https://example.com/avatar.png" },
-						role: { type: "string", enum: ["MANAGER", "USER"], example: "USER" },
+						photoURL: {
+							type: "string",
+							example: "https://example.com/avatar.png",
+						},
+						role: {
+							type: "string",
+							enum: ["MANAGER", "USER"],
+							example: "USER",
+						},
 						provider: { type: "string", example: "GOOGLE" },
 						emailVerified: { type: "boolean", example: true },
 						lastLoginAt: { type: "string", format: "date-time" },
@@ -56,13 +76,22 @@ const options = {
 				Group: {
 					type: "object",
 					properties: {
-						_id: { type: "string", example: "67f2de9f4e4d9c7ad9a9a222" },
+						_id: {
+							type: "string",
+							example: "67f2de9f4e4d9c7ad9a9a222",
+						},
 						title: { type: "string", example: "Maple Street Flat" },
 						address: { type: "string", example: "12 Maple Street" },
-						managerID: { type: "string", example: "67f2de9f4e4d9c7ad9a9a111" },
+						managerID: {
+							type: "string",
+							example: "67f2de9f4e4d9c7ad9a9a111",
+						},
 						userIDs: {
 							type: "array",
-							items: { type: "string", example: "67f2de9f4e4d9c7ad9a9a333" },
+							items: {
+								type: "string",
+								example: "67f2de9f4e4d9c7ad9a9a333",
+							},
 						},
 						joinCode: { type: "string", example: "ABC12" },
 						createdAt: { type: "string", format: "date-time" },
@@ -72,15 +101,77 @@ const options = {
 				Expense: {
 					type: "object",
 					properties: {
-						_id: { type: "string", example: "67f2de9f4e4d9c7ad9a9a444" },
-						groupID: { type: "string", example: "67f2de9f4e4d9c7ad9a9a222" },
-						userID: { type: "string", example: "67f2de9f4e4d9c7ad9a9a111" },
+						_id: {
+							type: "string",
+							example: "67f2de9f4e4d9c7ad9a9a444",
+						},
+						groupID: {
+							type: "string",
+							example: "67f2de9f4e4d9c7ad9a9a222",
+						},
+						userID: {
+							type: "string",
+							example: "67f2de9f4e4d9c7ad9a9a111",
+						},
 						title: { type: "string", example: "Monthly groceries" },
 						amount: { type: "number", example: 4500 },
 						category: { type: "string", example: "GROCERY" },
 						documentURL: {
 							type: "string",
-							example: "https://ik.imagekit.io/.../expenses_GROCERY_file.jpg",
+							example:
+								"https://ik.imagekit.io/.../expenses_GROCERY_file.jpg",
+						},
+						createdAt: { type: "string", format: "date-time" },
+						updatedAt: { type: "string", format: "date-time" },
+					},
+				},
+				Payment: {
+					type: "object",
+					properties: {
+						_id: {
+							type: "string",
+							example: "67f2de9f4e4d9c7ad9a9a555",
+						},
+						groupID: {
+							type: "string",
+							example: "67f2de9f4e4d9c7ad9a9a222",
+						},
+						userID: {
+							oneOf: [
+								{
+									type: "string",
+									example: "67f2de9f4e4d9c7ad9a9a111",
+								},
+								{
+									type: "object",
+									properties: {
+										_id: {
+											type: "string",
+											example: "67f2de9f4e4d9c7ad9a9a111",
+										},
+										displayName: {
+											type: "string",
+											example: "John Doe",
+										},
+										email: {
+											type: "string",
+											format: "email",
+											example: "john@example.com",
+										},
+									},
+								},
+							],
+						},
+						amount: { type: "number", example: 1200 },
+						paymentMethod: { type: "string", example: "bkash" },
+						transactionID: {
+							type: "string",
+							example: "TXN_20260405001",
+						},
+						status: {
+							type: "string",
+							enum: ["PENDING", "COMPLETED", "FAILED"],
+							example: "PENDING",
 						},
 						createdAt: { type: "string", format: "date-time" },
 						updatedAt: { type: "string", format: "date-time" },
@@ -158,6 +249,28 @@ const options = {
 					},
 					required: ["title", "amount", "category", "file"],
 				},
+				CreatePaymentRequest: {
+					type: "object",
+					properties: {
+						amount: { type: "number", minimum: 0, example: 1200 },
+						paymentMethod: { type: "string", example: "bkash" },
+						transactionID: {
+							type: "string",
+							example: "TXN_20260405001",
+						},
+					},
+					required: ["amount", "paymentMethod", "transactionID"],
+				},
+				ConfirmPaymentRequest: {
+					type: "object",
+					properties: {
+						transactionID: {
+							type: "string",
+							example: "TXN_20260405001",
+						},
+					},
+					required: ["transactionID"],
+				},
 			},
 		},
 		tags: [
@@ -165,6 +278,10 @@ const options = {
 			{ name: "Auth", description: "Authentication and user lifecycle" },
 			{ name: "Group", description: "Group management" },
 			{ name: "Expenses", description: "Group expense management" },
+			{
+				name: "Payment",
+				description: "Payment submission and confirmation",
+			},
 		],
 		paths: {
 			"/health": {
@@ -179,8 +296,14 @@ const options = {
 									schema: {
 										type: "object",
 										properties: {
-											success: { type: "boolean", example: true },
-											message: { type: "string", example: "OK" },
+											success: {
+												type: "boolean",
+												example: true,
+											},
+											message: {
+												type: "string",
+												example: "OK",
+											},
 										},
 									},
 								},
@@ -197,7 +320,9 @@ const options = {
 						required: true,
 						content: {
 							"application/json": {
-								schema: { $ref: "#/components/schemas/AuthRegisterRequest" },
+								schema: {
+									$ref: "#/components/schemas/AuthRegisterRequest",
+								},
 							},
 						},
 					},
@@ -209,9 +334,14 @@ const options = {
 									schema: {
 										type: "object",
 										properties: {
-											success: { type: "boolean", example: true },
+											success: {
+												type: "boolean",
+												example: true,
+											},
 											message: { type: "string" },
-											user: { $ref: "#/components/schemas/User" },
+											user: {
+												$ref: "#/components/schemas/User",
+											},
 										},
 									},
 								},
@@ -219,15 +349,33 @@ const options = {
 						},
 						400: {
 							description: "Invalid payload",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						422: {
 							description: "User already exists",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						500: {
 							description: "Server error",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -241,7 +389,9 @@ const options = {
 						required: true,
 						content: {
 							"application/json": {
-								schema: { $ref: "#/components/schemas/ManagerRegisterRequest" },
+								schema: {
+									$ref: "#/components/schemas/ManagerRegisterRequest",
+								},
 							},
 						},
 					},
@@ -253,9 +403,14 @@ const options = {
 									schema: {
 										type: "object",
 										properties: {
-											success: { type: "boolean", example: true },
+											success: {
+												type: "boolean",
+												example: true,
+											},
 											message: { type: "string" },
-											user: { $ref: "#/components/schemas/User" },
+											user: {
+												$ref: "#/components/schemas/User",
+											},
 										},
 									},
 								},
@@ -263,19 +418,43 @@ const options = {
 						},
 						401: {
 							description: "Unauthorized",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						403: {
 							description: "Forbidden",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						404: {
 							description: "User not found",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						500: {
 							description: "Server error",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -293,9 +472,14 @@ const options = {
 									schema: {
 										type: "object",
 										properties: {
-											success: { type: "boolean", example: true },
+											success: {
+												type: "boolean",
+												example: true,
+											},
 											message: { type: "string" },
-											user: { $ref: "#/components/schemas/User" },
+											user: {
+												$ref: "#/components/schemas/User",
+											},
 										},
 									},
 								},
@@ -303,19 +487,43 @@ const options = {
 						},
 						400: {
 							description: "Missing email in token",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						401: {
 							description: "Unauthorized",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						404: {
 							description: "User not found",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						500: {
 							description: "Server error",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -333,8 +541,15 @@ const options = {
 									schema: {
 										type: "object",
 										properties: {
-											success: { type: "boolean", example: true },
-											message: { type: "string", example: "User logged out successfully" },
+											success: {
+												type: "boolean",
+												example: true,
+											},
+											message: {
+												type: "string",
+												example:
+													"User logged out successfully",
+											},
 										},
 									},
 								},
@@ -342,15 +557,33 @@ const options = {
 						},
 						400: {
 							description: "Already logged out or missing token",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						401: {
 							description: "Unauthorized",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						500: {
 							description: "Server error",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -364,7 +597,9 @@ const options = {
 						required: true,
 						content: {
 							"application/json": {
-								schema: { $ref: "#/components/schemas/CreateGroupRequest" },
+								schema: {
+									$ref: "#/components/schemas/CreateGroupRequest",
+								},
 							},
 						},
 					},
@@ -376,9 +611,14 @@ const options = {
 									schema: {
 										type: "object",
 										properties: {
-											success: { type: "boolean", example: true },
+											success: {
+												type: "boolean",
+												example: true,
+											},
 											message: { type: "string" },
-											group: { $ref: "#/components/schemas/Group" },
+											group: {
+												$ref: "#/components/schemas/Group",
+											},
 										},
 									},
 								},
@@ -386,19 +626,43 @@ const options = {
 						},
 						400: {
 							description: "Invalid payload",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						401: {
 							description: "Unauthorized",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						403: {
 							description: "Forbidden",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						500: {
 							description: "Server error",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -412,7 +676,9 @@ const options = {
 						required: true,
 						content: {
 							"application/json": {
-								schema: { $ref: "#/components/schemas/SendJoinCodeRequest" },
+								schema: {
+									$ref: "#/components/schemas/SendJoinCodeRequest",
+								},
 							},
 						},
 					},
@@ -424,11 +690,17 @@ const options = {
 									schema: {
 										type: "object",
 										properties: {
-											success: { type: "boolean", example: true },
+											success: {
+												type: "boolean",
+												example: true,
+											},
 											message: { type: "string" },
 											invalidEmails: {
 												type: "array",
-												items: { type: "string", format: "email" },
+												items: {
+													type: "string",
+													format: "email",
+												},
 											},
 										},
 									},
@@ -437,19 +709,43 @@ const options = {
 						},
 						400: {
 							description: "Invalid payload",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						401: {
 							description: "Unauthorized",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						403: {
 							description: "Forbidden",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						500: {
 							description: "Server error",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -463,7 +759,9 @@ const options = {
 						required: true,
 						content: {
 							"application/json": {
-								schema: { $ref: "#/components/schemas/JoinGroupRequest" },
+								schema: {
+									$ref: "#/components/schemas/JoinGroupRequest",
+								},
 							},
 						},
 					},
@@ -475,9 +773,14 @@ const options = {
 									schema: {
 										type: "object",
 										properties: {
-											success: { type: "boolean", example: true },
+											success: {
+												type: "boolean",
+												example: true,
+											},
 											message: { type: "string" },
-											group: { $ref: "#/components/schemas/Group" },
+											group: {
+												$ref: "#/components/schemas/Group",
+											},
 										},
 									},
 								},
@@ -485,23 +788,53 @@ const options = {
 						},
 						400: {
 							description: "Invalid request",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						401: {
 							description: "Unauthorized",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						403: {
 							description: "Not invited",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						404: {
 							description: "Invalid/expired join code",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						500: {
 							description: "Server error",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -515,7 +848,9 @@ const options = {
 						required: true,
 						content: {
 							"application/json": {
-								schema: { $ref: "#/components/schemas/RemoveUserRequest" },
+								schema: {
+									$ref: "#/components/schemas/RemoveUserRequest",
+								},
 							},
 						},
 					},
@@ -527,9 +862,14 @@ const options = {
 									schema: {
 										type: "object",
 										properties: {
-											success: { type: "boolean", example: true },
+											success: {
+												type: "boolean",
+												example: true,
+											},
 											message: { type: "string" },
-											group: { $ref: "#/components/schemas/Group" },
+											group: {
+												$ref: "#/components/schemas/Group",
+											},
 										},
 									},
 								},
@@ -537,23 +877,53 @@ const options = {
 						},
 						400: {
 							description: "Invalid request",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						401: {
 							description: "Unauthorized",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						403: {
 							description: "Forbidden",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						404: {
 							description: "User not found",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						500: {
 							description: "Server error",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -571,9 +941,14 @@ const options = {
 									schema: {
 										type: "object",
 										properties: {
-											success: { type: "boolean", example: true },
+											success: {
+												type: "boolean",
+												example: true,
+											},
 											message: { type: "string" },
-											group: { $ref: "#/components/schemas/Group" },
+											group: {
+												$ref: "#/components/schemas/Group",
+											},
 										},
 									},
 								},
@@ -581,19 +956,43 @@ const options = {
 						},
 						401: {
 							description: "Unauthorized",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						403: {
 							description: "Forbidden",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						404: {
 							description: "Group not found",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						500: {
 							description: "Server error",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -619,11 +1018,16 @@ const options = {
 									schema: {
 										type: "object",
 										properties: {
-											success: { type: "boolean", example: true },
+											success: {
+												type: "boolean",
+												example: true,
+											},
 											message: { type: "string" },
 											groupTitle: { type: "string" },
 											groupAddress: { type: "string" },
-											manager: { $ref: "#/components/schemas/User" },
+											manager: {
+												$ref: "#/components/schemas/User",
+											},
 										},
 									},
 								},
@@ -631,15 +1035,33 @@ const options = {
 						},
 						401: {
 							description: "Unauthorized",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						404: {
 							description: "Group not found or not a member",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						500: {
 							description: "Server error",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -653,7 +1075,9 @@ const options = {
 						required: true,
 						content: {
 							"application/json": {
-								schema: { $ref: "#/components/schemas/ChangeRoleRequest" },
+								schema: {
+									$ref: "#/components/schemas/ChangeRoleRequest",
+								},
 							},
 						},
 					},
@@ -665,9 +1089,14 @@ const options = {
 									schema: {
 										type: "object",
 										properties: {
-											success: { type: "boolean", example: true },
+											success: {
+												type: "boolean",
+												example: true,
+											},
 											message: { type: "string" },
-											newManager: { $ref: "#/components/schemas/User" },
+											newManager: {
+												$ref: "#/components/schemas/User",
+											},
 										},
 									},
 								},
@@ -675,19 +1104,43 @@ const options = {
 						},
 						400: {
 							description: "Invalid request",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						401: {
 							description: "Unauthorized",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						403: {
 							description: "Forbidden",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						500: {
 							description: "Server error",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -715,9 +1168,14 @@ const options = {
 									schema: {
 										type: "object",
 										properties: {
-											success: { type: "boolean", example: true },
+											success: {
+												type: "boolean",
+												example: true,
+											},
 											message: { type: "string" },
-											expense: { $ref: "#/components/schemas/Expense" },
+											expense: {
+												$ref: "#/components/schemas/Expense",
+											},
 										},
 									},
 								},
@@ -725,19 +1183,43 @@ const options = {
 						},
 						400: {
 							description: "Invalid payload",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						401: {
 							description: "Unauthorized",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						403: {
 							description: "Forbidden",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						500: {
 							description: "Server error",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -769,11 +1251,16 @@ const options = {
 									schema: {
 										type: "object",
 										properties: {
-											success: { type: "boolean", example: true },
+											success: {
+												type: "boolean",
+												example: true,
+											},
 											message: { type: "string" },
 											expenses: {
 												type: "array",
-												items: { $ref: "#/components/schemas/Expense" },
+												items: {
+													$ref: "#/components/schemas/Expense",
+												},
 											},
 										},
 									},
@@ -782,19 +1269,400 @@ const options = {
 						},
 						400: {
 							description: "Invalid query params",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						401: {
 							description: "Unauthorized",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						403: {
 							description: "Forbidden",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 						500: {
 							description: "Server error",
-							content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			"/api/payment": {
+				post: {
+					tags: ["Payment"],
+					summary: "Create payment entry",
+					security: [{ bearerAuth: [] }],
+					requestBody: {
+						required: true,
+						content: {
+							"application/json": {
+								schema: {
+									$ref: "#/components/schemas/CreatePaymentRequest",
+								},
+							},
+						},
+					},
+					responses: {
+						201: {
+							description: "Payment created",
+							content: {
+								"application/json": {
+									schema: {
+										type: "object",
+										properties: {
+											success: {
+												type: "boolean",
+												example: true,
+											},
+											message: { type: "string" },
+											payment: {
+												$ref: "#/components/schemas/Payment",
+											},
+										},
+									},
+								},
+							},
+						},
+						400: {
+							description: "Invalid payload",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+						401: {
+							description: "Unauthorized",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+						404: {
+							description: "User group not found",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+						409: {
+							description: "Duplicate transaction ID",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+						500: {
+							description: "Server error",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+					},
+				},
+				get: {
+					tags: ["Payment"],
+					summary: "Get payments for manager group",
+					security: [{ bearerAuth: [] }],
+					parameters: [
+						{
+							name: "transactionID",
+							in: "query",
+							required: false,
+							schema: { type: "string" },
+							description: "Filter by transaction ID",
+						},
+						{
+							name: "userID",
+							in: "query",
+							required: false,
+							schema: { type: "string" },
+							description:
+								"Filter by user ID (must belong to manager group)",
+						},
+						{
+							name: "fromDate",
+							in: "query",
+							required: false,
+							schema: { type: "string", format: "date" },
+							description: "Start date (YYYY-MM-DD)",
+						},
+						{
+							name: "toDate",
+							in: "query",
+							required: false,
+							schema: { type: "string", format: "date" },
+							description: "End date (YYYY-MM-DD)",
+						},
+					],
+					responses: {
+						200: {
+							description: "Payments fetched",
+							content: {
+								"application/json": {
+									schema: {
+										type: "object",
+										properties: {
+											success: {
+												type: "boolean",
+												example: true,
+											},
+											message: { type: "string" },
+											count: {
+												type: "number",
+												example: 2,
+											},
+											payments: {
+												type: "array",
+												items: {
+													$ref: "#/components/schemas/Payment",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						400: {
+							description: "Invalid query parameters",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+						401: {
+							description: "Unauthorized",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+						403: {
+							description: "Forbidden",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+						404: {
+							description: "Payment or user/group not found",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+						500: {
+							description: "Server error",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			"/api/payment/confirm/{paymentID}": {
+				post: {
+					tags: ["Payment"],
+					summary: "Confirm payment (manager only)",
+					security: [{ bearerAuth: [] }],
+					parameters: [
+						{
+							name: "paymentID",
+							in: "path",
+							required: true,
+							schema: { type: "string" },
+						},
+					],
+					requestBody: {
+						required: true,
+						content: {
+							"application/json": {
+								schema: {
+									$ref: "#/components/schemas/ConfirmPaymentRequest",
+								},
+							},
+						},
+					},
+					responses: {
+						200: {
+							description: "Payment confirmed",
+							content: {
+								"application/json": {
+									schema: {
+										type: "object",
+										properties: {
+											success: {
+												type: "boolean",
+												example: true,
+											},
+											message: { type: "string" },
+											payment: {
+												$ref: "#/components/schemas/Payment",
+											},
+										},
+									},
+								},
+							},
+						},
+						400: {
+							description: "Invalid payload",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+						401: {
+							description: "Unauthorized",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+						403: {
+							description: "Forbidden",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+						404: {
+							description: "Payment not found",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+						500: {
+							description: "Server error",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			"/api/payment/user": {
+				get: {
+					tags: ["Payment"],
+					summary: "Get current user payments",
+					security: [{ bearerAuth: [] }],
+					responses: {
+						200: {
+							description: "User payments fetched",
+							content: {
+								"application/json": {
+									schema: {
+										type: "object",
+										properties: {
+											success: {
+												type: "boolean",
+												example: true,
+											},
+											message: { type: "string" },
+											count: {
+												type: "number",
+												example: 2,
+											},
+											payments: {
+												type: "array",
+												items: {
+													$ref: "#/components/schemas/Payment",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						401: {
+							description: "Unauthorized",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
+						},
+						500: {
+							description: "Server error",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
+									},
+								},
+							},
 						},
 					},
 				},
