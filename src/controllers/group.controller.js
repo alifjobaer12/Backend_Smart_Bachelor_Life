@@ -498,6 +498,64 @@ async function getGroupDetails(req, res) {
 }
 
 /**
+ * - update the payment notice for the manager
+ * - PATCH /api/group/notice
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+async function updateGroupPaymentNotice(req, res) {
+	const logCtx = getLogContext(req);
+	const { paymentNotice } = req.body;
+
+	logger.info("Update group payment notice attempt", {
+		...logCtx,
+		paymentNotice,
+	});
+
+	if (typeof paymentNotice !== "string") {
+		return res.status(400).json({
+			success: false,
+			message: "paymentNotice is required",
+		});
+	}
+
+	try {
+		const group = await groupModel.findOne({ managerID: req.user._id });
+
+		if (!group) {
+			return res.status(404).json({
+				success: false,
+				message: "Group not found for the manager",
+			});
+		}
+
+		group.paymentNotice = paymentNotice.trim();
+		await group.save();
+
+		logger.info("Update group payment notice success", {
+			...logCtx,
+			groupId: group._id,
+			paymentNotice: group.paymentNotice,
+		});
+
+		return res.status(200).json({
+			success: true,
+			message: "Payment notice updated successfully",
+			group,
+		});
+	} catch (error) {
+		logger.error("Update group payment notice failed", {
+			...logCtx,
+			error: getErrorMeta(error),
+		});
+
+		return res.status(500).json({
+			success: false,
+			message: "An error occurred while updating payment notice",
+		});
+	}
+}
+
+/**
  * - revoke an invited email before joining
  * - POST /api/groups/revoke-invite
  * - protected route, requires valid Firebase ID token and group manager role
@@ -948,6 +1006,7 @@ module.exports = {
 	getGroupDetailsForMember,
 	revokeInvite,
 	updateGroupTitle,
+	updateGroupPaymentNotice,
 	leaveGroup,
 	chengeUserRole,
 };

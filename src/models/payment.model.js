@@ -25,6 +25,12 @@ const paymentSchema = new mongoose.Schema({
 		default: "",
 		immutable: [true, "paymentMethod cannot be changed once set"],
 	},
+	senderNumber: {
+		type: String,
+		trim: true,
+		default: "",
+		immutable: [true, "senderNumber cannot be changed once set"],
+	},
 	transactionID: {
 		type: String,
 		trim: true,

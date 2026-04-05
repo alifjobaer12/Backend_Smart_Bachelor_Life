@@ -1,6 +1,41 @@
 const paymentModel = require("../models/payment.model");
 const groupModel = require("../models/group.model");
+const { getRedisClient } = require("../config/redis.config");
 const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
+
+async function clearPaymentCache(logCtx) {
+	let redisClient;
+
+	try {
+		redisClient = getRedisClient();
+	} catch (error) {
+		logger.warn("Payment cache clear skipped: redis unavailable", {
+			...logCtx,
+			error: getErrorMeta(error),
+		});
+		return;
+	}
+
+	const keysToDelete = [];
+
+	for await (const key of redisClient.scanIterator({
+		MATCH: "cache:payment:*",
+		COUNT: 100,
+	})) {
+		keysToDelete.push(key);
+	}
+
+	if (keysToDelete.length === 0) {
+		return;
+	}
+
+	await redisClient.del(keysToDelete);
+
+	logger.info("Payment cache cleared", {
+		...logCtx,
+		deletedKeys: keysToDelete.length,
+	});
+}
 
 /**
  * - create a payment entry for the authenticated user
@@ -9,14 +44,23 @@ const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
  */
 async function createPayment(req, res) {
 	const logCtx = getLogContext(req);
-	const { amount, paymentMethod, transactionID } = req.body;
+	const { amount, paymentMethod, transactionID, senderNumber } = req.body;
 	const parsedAmount = Number(amount);
+	const normalizedPaymentMethod = String(paymentMethod || "").trim();
+	const isStripePayment = normalizedPaymentMethod.toLowerCase() === "stripe";
+	const normalizedTransactionID = String(transactionID || "").trim();
+	const normalizedSenderNumber = String(senderNumber || "").trim();
+	const generatedStripeTransactionID = `STRIPE-${Date.now()}`;
+	const finalTransactionID = isStripePayment
+		? normalizedTransactionID || generatedStripeTransactionID
+		: normalizedTransactionID;
 
 	logger.info("Create payment attempt", {
 		...logCtx,
 		amount,
 		paymentMethod,
 		transactionID,
+		senderNumber,
 	});
 
 	if (
@@ -24,20 +68,24 @@ async function createPayment(req, res) {
 		amount === null ||
 		Number.isNaN(parsedAmount) ||
 		parsedAmount < 0 ||
-		!paymentMethod ||
-		!transactionID
+		!normalizedPaymentMethod ||
+		(!isStripePayment && (!normalizedSenderNumber || !normalizedTransactionID))
 	) {
 		logger.warn("Create payment failed: invalid payload", {
 			...logCtx,
 			amount,
 			paymentMethod,
 			transactionID,
+			senderNumber,
 		});
+
+		const requirementMessage = isStripePayment
+			? "amount and paymentMethod are required"
+			: "amount, paymentMethod, senderNumber and transactionID are required";
 
 		return res.status(400).json({
 			success: false,
-			message:
-				"amount (non-negative), paymentMethod and transactionID are required",
+			message: requirementMessage,
 		});
 	}
 
@@ -69,8 +117,9 @@ async function createPayment(req, res) {
 			groupID: group._id,
 			userID: req.user._id,
 			amount: parsedAmount,
-			paymentMethod: String(paymentMethod).trim(),
-			transactionID: String(transactionID).trim(),
+			paymentMethod: normalizedPaymentMethod,
+			senderNumber: isStripePayment ? "" : normalizedSenderNumber,
+			transactionID: finalTransactionID,
 		});
 
 		logger.info("Create payment success", {
@@ -80,6 +129,8 @@ async function createPayment(req, res) {
 			userId: req.user._id,
 			amount: parsedAmount,
 		});
+
+		await clearPaymentCache(logCtx);
 
 		return res.status(201).json({
 			success: true,
@@ -105,6 +156,7 @@ async function createPayment(req, res) {
 			amount,
 			paymentMethod,
 			transactionID,
+			senderNumber,
 			error: getErrorMeta(error),
 		});
 
@@ -194,6 +246,8 @@ async function confirmPayment(req, res) {
 			confirmedBy: req.user._id,
 		});
 
+		await clearPaymentCache(logCtx);
+
 		return res.status(200).json({
 			success: true,
 			message: "Payment confirmed successfully",
@@ -210,6 +264,106 @@ async function confirmPayment(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to confirm payment",
+			error: error.message,
+		});
+	}
+}
+
+/**
+ * - reject a pending payment by transactionID for the authenticated manager
+ * - POST /api/payment/reject/:paymentID
+ * - requires manager authentication
+ */
+async function rejectPayment(req, res) {
+	const logCtx = getLogContext(req);
+	const { paymentID } = req.params;
+	const { transactionID } = req.body;
+
+	logger.info("Reject payment attempt", {
+		...logCtx,
+		paymentID,
+		transactionID,
+	});
+
+	if (!transactionID || String(transactionID).trim() === "" || !paymentID) {
+		logger.warn("Reject payment failed: missing paymentID/transactionID", {
+			...logCtx,
+			paymentID,
+			transactionID,
+		});
+
+		return res.status(400).json({
+			success: false,
+			message: "transactionID and paymentID are required",
+		});
+	}
+
+	try {
+		const payment = await paymentModel.findOne({
+			_id: paymentID,
+			transactionID,
+		});
+
+		if (!payment) {
+			logger.warn("Reject payment failed: payment not found", {
+				...logCtx,
+				paymentID,
+				transactionID,
+			});
+
+			return res.status(404).json({
+				success: false,
+				message: "Payment not found for the user",
+			});
+		}
+
+		const isUserInGroup = await groupModel.findOne({
+			managerID: req.user._id,
+			$or: [{ managerID: payment.userID }, { userIDs: payment.userID }],
+		});
+
+		if (!isUserInGroup) {
+			logger.warn("Reject payment failed: unauthorized", {
+				...logCtx,
+				paymentID,
+				paymentUserId: payment.userID,
+				requestUserId: req.user._id,
+			});
+
+			return res.status(403).json({
+				success: false,
+				message: "User is not authorized to reject this payment",
+			});
+		}
+
+		payment.status = "FAILED";
+		await payment.save();
+
+		logger.info("Reject payment success", {
+			...logCtx,
+			paymentId: payment._id,
+			paymentUserId: payment.userID,
+			rejectedBy: req.user._id,
+		});
+
+		await clearPaymentCache(logCtx);
+
+		return res.status(200).json({
+			success: true,
+			message: "Payment rejected successfully",
+			payment,
+		});
+	} catch (error) {
+		logger.error("Reject payment failed", {
+			...logCtx,
+			paymentID,
+			transactionID,
+			error: getErrorMeta(error),
+		});
+
+		return res.status(500).json({
+			success: false,
+			message: "Failed to reject payment",
 			error: error.message,
 		});
 	}
@@ -471,6 +625,7 @@ async function getUserPayments(req, res) {
 module.exports = {
 	createPayment,
 	confirmPayment,
+	rejectPayment,
 	getPayments,
 	getUserPayments,
 };

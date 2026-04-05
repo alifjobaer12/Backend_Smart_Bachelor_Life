@@ -102,6 +102,18 @@ groupRouter.patch(
 );
 
 /**
+ * - update the payment notice for the manager
+ * - PATCH /api/groups/notice
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+groupRouter.patch(
+	"/notice",
+	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["group"]),
+	groupController.updateGroupPaymentNotice,
+);
+
+/**
  * - leave a group as a member
  * - POST /api/groups/leave
  * - protected route, requires valid Firebase ID token and group membership

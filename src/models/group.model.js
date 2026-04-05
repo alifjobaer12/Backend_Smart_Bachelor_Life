@@ -36,6 +36,11 @@ const groupSchema = new mongoose.Schema(
 			default: [],
 			select: false, // Hide invitedEmails from query results by default
 		},
+		paymentNotice: {
+			type: String,
+			trim: true,
+			default: "",
+		},
 	},
 	{
 		timestamps: true,

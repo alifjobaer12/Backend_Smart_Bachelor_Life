@@ -202,6 +202,7 @@ async function userLoginController(req, res) {
 				title: group.title,
 				address: group.address,
 				joinCode: group.joinCode,
+				paymentNotice: group.paymentNotice || "",
 				memberCount: group.userIDs?.length || 0,
 				manager: group.managerID,
 			}

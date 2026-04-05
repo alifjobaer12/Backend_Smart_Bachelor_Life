@@ -32,6 +32,18 @@ paymentRouter.post(
 );
 
 /**
+ * - reject a payment by transactionID for the authenticated manager
+ * - POST /api/payment/reject/:paymentID
+ * - requires manager authentication
+ */
+paymentRouter.post(
+	"/reject/:paymentID",
+	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["payment"]),
+	paymentController.rejectPayment,
+);
+
+/**
  * - get payments for the authenticated user's group
  * - GET /api/payment
  * - requires manager authentication
