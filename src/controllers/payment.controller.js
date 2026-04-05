@@ -1,6 +1,6 @@
 const paymentModel = require("../models/payment.model");
 const groupModel = require("../models/group.model");
-
+const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 
 /**
  * - create a payment entry for the authenticated user
@@ -8,8 +8,16 @@ const groupModel = require("../models/group.model");
  * - requires user authentication
  */
 async function createPayment(req, res) {
+	const logCtx = getLogContext(req);
 	const { amount, paymentMethod, transactionID } = req.body;
 	const parsedAmount = Number(amount);
+
+	logger.info("Create payment attempt", {
+		...logCtx,
+		amount,
+		paymentMethod,
+		transactionID,
+	});
 
 	if (
 		amount === undefined ||
@@ -19,6 +27,13 @@ async function createPayment(req, res) {
 		!paymentMethod ||
 		!transactionID
 	) {
+		logger.warn("Create payment failed: invalid payload", {
+			...logCtx,
+			amount,
+			paymentMethod,
+			transactionID,
+		});
+
 		return res.status(400).json({
 			success: false,
 			message:
@@ -32,11 +47,23 @@ async function createPayment(req, res) {
 		});
 
 		if (!group) {
+			logger.warn("Create payment failed: user has no group", {
+				...logCtx,
+				userId: req.user._id,
+			});
+
 			return res.status(404).json({
 				success: false,
 				message: "User is not part of any group",
 			});
 		}
+
+		logger.debug("Create payment creating document", {
+			...logCtx,
+			groupId: group._id,
+			userId: req.user._id,
+			amount: parsedAmount,
+		});
 
 		const payment = await paymentModel.create({
 			groupID: group._id,
@@ -46,6 +73,14 @@ async function createPayment(req, res) {
 			transactionID: String(transactionID).trim(),
 		});
 
+		logger.info("Create payment success", {
+			...logCtx,
+			paymentId: payment._id,
+			groupId: group._id,
+			userId: req.user._id,
+			amount: parsedAmount,
+		});
+
 		return res.status(201).json({
 			success: true,
 			message: "Payment created successfully",
@@ -53,11 +88,25 @@ async function createPayment(req, res) {
 		});
 	} catch (error) {
 		if (error?.code === 11000) {
+			logger.warn("Create payment failed: duplicate transactionID", {
+				...logCtx,
+				transactionID,
+				error: getErrorMeta(error),
+			});
+
 			return res.status(409).json({
 				success: false,
 				message: "transactionID already exists",
 			});
 		}
+
+		logger.error("Create payment failed", {
+			...logCtx,
+			amount,
+			paymentMethod,
+			transactionID,
+			error: getErrorMeta(error),
+		});
 
 		return res.status(500).json({
 			success: false,
@@ -74,10 +123,23 @@ async function createPayment(req, res) {
  * - only users who are part of the same group as the payment can confirm it
  */
 async function confirmPayment(req, res) {
+	const logCtx = getLogContext(req);
 	const { paymentID } = req.params;
 	const { transactionID } = req.body;
 
+	logger.info("Confirm payment attempt", {
+		...logCtx,
+		paymentID,
+		transactionID,
+	});
+
 	if (!transactionID || String(transactionID).trim() === "" || !paymentID) {
+		logger.warn("Confirm payment failed: missing paymentID/transactionID", {
+			...logCtx,
+			paymentID,
+			transactionID,
+		});
+
 		return res.status(400).json({
 			success: false,
 			message: "transactionID and paymentID are required",
@@ -91,6 +153,12 @@ async function confirmPayment(req, res) {
 		});
 
 		if (!payment) {
+			logger.warn("Confirm payment failed: payment not found", {
+				...logCtx,
+				paymentID,
+				transactionID,
+			});
+
 			return res.status(404).json({
 				success: false,
 				message: "Payment not found for the user",
@@ -103,6 +171,13 @@ async function confirmPayment(req, res) {
 		});
 
 		if (!isUserInGroup) {
+			logger.warn("Confirm payment failed: unauthorized", {
+				...logCtx,
+				paymentID,
+				paymentUserId: payment.userID,
+				requestUserId: req.user._id,
+			});
+
 			return res.status(403).json({
 				success: false,
 				message: "User is not authorized to confirm this payment",
@@ -112,12 +187,26 @@ async function confirmPayment(req, res) {
 		payment.status = "COMPLETED";
 		await payment.save();
 
+		logger.info("Confirm payment success", {
+			...logCtx,
+			paymentId: payment._id,
+			paymentUserId: payment.userID,
+			confirmedBy: req.user._id,
+		});
+
 		return res.status(200).json({
 			success: true,
 			message: "Payment confirmed successfully",
 			payment,
 		});
 	} catch (error) {
+		logger.error("Confirm payment failed", {
+			...logCtx,
+			paymentID,
+			transactionID,
+			error: getErrorMeta(error),
+		});
+
 		return res.status(500).json({
 			success: false,
 			message: "Failed to confirm payment",
@@ -133,11 +222,20 @@ async function confirmPayment(req, res) {
  * - supports filtering by transactionID, userID, fromDate, toDate
  */
 async function getPayments(req, res) {
+	const logCtx = getLogContext(req);
 	const transactionID = req.query.transactionID || req.query.transactionId;
 	const userID = req.query.userID || req.query.userId || req.query.uid;
 	const fromDate =
 		req.query.fromDate || req.query.formDate || req.query.dateFrom;
 	const toDate = req.query.toDate || req.query.dateTo;
+
+	logger.info("Get payments attempt", {
+		...logCtx,
+		transactionID,
+		userID,
+		fromDate,
+		toDate,
+	});
 
 	const normalizeDate = (value) => {
 		if (!value) {
@@ -151,6 +249,11 @@ async function getPayments(req, res) {
 	try {
 		const normalizedFromDate = normalizeDate(fromDate);
 		if (fromDate && !normalizedFromDate) {
+			logger.warn("Get payments failed: invalid fromDate", {
+				...logCtx,
+				fromDate,
+			});
+
 			return res.status(400).json({
 				success: false,
 				message: "Invalid fromDate",
@@ -159,6 +262,11 @@ async function getPayments(req, res) {
 
 		const normalizedToDate = normalizeDate(toDate);
 		if (toDate && !normalizedToDate) {
+			logger.warn("Get payments failed: invalid toDate", {
+				...logCtx,
+				toDate,
+			});
+
 			return res.status(400).json({
 				success: false,
 				message: "Invalid toDate",
@@ -170,6 +278,11 @@ async function getPayments(req, res) {
 		});
 
 		if (!group) {
+			logger.warn("Get payments failed: user not group manager", {
+				...logCtx,
+				userId: req.user._id,
+			});
+
 			return res.status(403).json({
 				success: false,
 				message: "User is not part of any group",
@@ -183,11 +296,24 @@ async function getPayments(req, res) {
 			});
 
 			if (!payment) {
+				logger.warn("Get payments failed: transactionID not found", {
+					...logCtx,
+					groupId: group._id,
+					transactionID,
+				});
+
 				return res.status(404).json({
 					success: false,
 					message: "Payment not found",
 				});
 			}
+
+			logger.info("Get payments success: single payment", {
+				...logCtx,
+				groupId: group._id,
+				paymentId: payment._id,
+				transactionID,
+			});
 
 			return res.status(200).json({
 				success: true,
@@ -208,6 +334,12 @@ async function getPayments(req, res) {
 
 		const endDate = normalizedToDate || new Date();
 		if (startDate > endDate) {
+			logger.warn("Get payments failed: invalid date range", {
+				...logCtx,
+				fromDate,
+				toDate,
+			});
+
 			return res.status(400).json({
 				success: false,
 				message: "fromDate cannot be greater than toDate",
@@ -232,6 +364,12 @@ async function getPayments(req, res) {
 				group.userIDs.some((id) => String(id) === String(userID));
 
 			if (!isUserInGroup) {
+				logger.warn("Get payments failed: user not in group filter", {
+					...logCtx,
+					groupId: group._id,
+					userID,
+				});
+
 				return res.status(404).json({
 					success: false,
 					message: "User is not part of this group",
@@ -246,6 +384,18 @@ async function getPayments(req, res) {
 			.sort({ createdAt: -1 })
 			.populate("userID", "displayName email");
 
+		logger.info("Get payments success", {
+			...logCtx,
+			groupId: group._id,
+			count: payments.length,
+			filters: {
+				transactionID: !!transactionID,
+				userID: userID || null,
+				fromDate: startDate,
+				toDate: endDate,
+			},
+		});
+
 		return res.status(200).json({
 			success: true,
 			message: "Payments fetched successfully",
@@ -253,6 +403,15 @@ async function getPayments(req, res) {
 			payments,
 		});
 	} catch (error) {
+		logger.error("Get payments failed", {
+			...logCtx,
+			transactionID,
+			userID,
+			fromDate,
+			toDate,
+			error: getErrorMeta(error),
+		});
+
 		return res.status(500).json({
 			success: false,
 			message: "Failed to fetch payments",
@@ -268,12 +427,25 @@ async function getPayments(req, res) {
  * - returns only payments made by the authenticated user
  */
 async function getUserPayments(req, res) {
+	const logCtx = getLogContext(req);
+
+	logger.info("Get user payments attempt", {
+		...logCtx,
+		userId: req.user._id,
+	});
+
 	try {
 		const payments = await paymentModel
 			.find({
 				userID: req.user._id,
 			})
 			.sort({ createdAt: -1 });
+
+		logger.info("Get user payments success", {
+			...logCtx,
+			userId: req.user._id,
+			count: payments.length,
+		});
 
 		return res.status(200).json({
 			success: true,
@@ -282,6 +454,12 @@ async function getUserPayments(req, res) {
 			payments,
 		});
 	} catch (error) {
+		logger.error("Get user payments failed", {
+			...logCtx,
+			userId: req.user._id,
+			error: getErrorMeta(error),
+		});
+
 		return res.status(500).json({
 			success: false,
 			message: "Failed to fetch user payments",
