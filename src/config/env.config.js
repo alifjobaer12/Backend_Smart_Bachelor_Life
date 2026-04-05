@@ -88,6 +88,18 @@ if (
 	);
 }
 
+if (!process.env.STRIPE_SECRET_KEY) {
+	logger.warn(
+		"STRIPE_SECRET_KEY is not defined. Stripe checkout will be unavailable.",
+	);
+}
+
+if (!process.env.STRIPE_CURRENCY) {
+	logger.warn(
+		"STRIPE_CURRENCY is not defined. Default currency 'usd' will be used for Stripe checkout.",
+	);
+}
+
 const envConfig = {
 	NODE_ENV: process.env.NODE_ENV || "development",
 	CLIENT_URL: process.env.CLIENT_URL,
@@ -108,6 +120,8 @@ const envConfig = {
 	CLIENT_ID: process.env.CLIENT_ID,
 	CLIENT_SECRET: process.env.CLIENT_SECRET,
 	REFRESH_TOKEN: process.env.REFRESH_TOKEN,
+	STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+	STRIPE_CURRENCY: process.env.STRIPE_CURRENCY,
 };
 
 module.exports = envConfig;

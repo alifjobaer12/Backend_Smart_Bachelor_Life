@@ -1,7 +1,23 @@
 const paymentModel = require("../models/payment.model");
 const groupModel = require("../models/group.model");
 const { getRedisClient } = require("../config/redis.config");
+const envConfig = require("../config/env.config");
 const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
+
+let stripeClient;
+
+function getStripeClient() {
+	if (stripeClient) {
+		return stripeClient;
+	}
+
+	if (!envConfig.STRIPE_SECRET_KEY) {
+		throw new Error("STRIPE_SECRET_KEY is not configured");
+	}
+
+	stripeClient = require("stripe")(envConfig.STRIPE_SECRET_KEY);
+	return stripeClient;
+}
 
 async function clearPaymentCache(logCtx) {
 	let redisClient;
@@ -18,23 +34,30 @@ async function clearPaymentCache(logCtx) {
 
 	const keysToDelete = [];
 
-	for await (const key of redisClient.scanIterator({
-		MATCH: "cache:payment:*",
-		COUNT: 100,
-	})) {
-		keysToDelete.push(key);
+	try {
+		for await (const key of redisClient.scanIterator({
+			MATCH: "cache:payment:*",
+			COUNT: 100,
+		})) {
+			keysToDelete.push(key);
+		}
+
+		if (keysToDelete.length === 0) {
+			return;
+		}
+
+		await redisClient.del(keysToDelete);
+
+		logger.info("Payment cache cleared", {
+			...logCtx,
+			deletedKeys: keysToDelete.length,
+		});
+	} catch (error) {
+		logger.warn("Payment cache clear failed", {
+			...logCtx,
+			error: getErrorMeta(error),
+		});
 	}
-
-	if (keysToDelete.length === 0) {
-		return;
-	}
-
-	await redisClient.del(keysToDelete);
-
-	logger.info("Payment cache cleared", {
-		...logCtx,
-		deletedKeys: keysToDelete.length,
-	});
 }
 
 /**
@@ -47,7 +70,11 @@ async function createPayment(req, res) {
 	const { amount, paymentMethod, transactionID, senderNumber } = req.body;
 	const parsedAmount = Number(amount);
 	const normalizedPaymentMethod = String(paymentMethod || "").trim();
+	const normalizedPaymentMethodLower = normalizedPaymentMethod.toLowerCase();
 	const isStripePayment = normalizedPaymentMethod.toLowerCase() === "stripe";
+	const isSenderNumberRequired = ["bkash", "nagad"].includes(
+		normalizedPaymentMethodLower,
+	);
 	const normalizedTransactionID = String(transactionID || "").trim();
 	const normalizedSenderNumber = String(senderNumber || "").trim();
 	const generatedStripeTransactionID = `STRIPE-${Date.now()}`;
@@ -69,7 +96,9 @@ async function createPayment(req, res) {
 		Number.isNaN(parsedAmount) ||
 		parsedAmount < 0 ||
 		!normalizedPaymentMethod ||
-		(!isStripePayment && (!normalizedSenderNumber || !normalizedTransactionID))
+		(!isStripePayment &&
+			(!normalizedTransactionID ||
+				(isSenderNumberRequired && !normalizedSenderNumber)))
 	) {
 		logger.warn("Create payment failed: invalid payload", {
 			...logCtx,
@@ -81,7 +110,9 @@ async function createPayment(req, res) {
 
 		const requirementMessage = isStripePayment
 			? "amount and paymentMethod are required"
-			: "amount, paymentMethod, senderNumber and transactionID are required";
+			: isSenderNumberRequired
+				? "amount, paymentMethod, senderNumber and transactionID are required"
+				: "amount, paymentMethod and transactionID are required";
 
 		return res.status(400).json({
 			success: false,
@@ -163,6 +194,197 @@ async function createPayment(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to create payment",
+			error: error.message,
+		});
+	}
+}
+
+/**
+ * - create a stripe checkout session for the authenticated user
+ * - POST /api/payment/stripe/checkout-session
+ * - requires user authentication
+ */
+async function createStripeCheckoutSession(req, res) {
+	const logCtx = getLogContext(req);
+	const parsedAmount = Number(req.body?.amount);
+
+	logger.info("Create Stripe checkout session attempt", {
+		...logCtx,
+		amount: req.body?.amount,
+	});
+
+	if (!parsedAmount || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+		return res.status(400).json({
+			success: false,
+			message: "amount must be greater than 0",
+		});
+	}
+
+	try {
+		const stripe = getStripeClient();
+		const clientBaseUrl =
+			envConfig.CLIENT_URL || req.headers.origin || "http://localhost:5173";
+
+		const session = await stripe.checkout.sessions.create({
+			mode: "payment",
+			customer_email: req.user?.email || undefined,
+			line_items: [
+				{
+					price_data: {
+						currency: (envConfig.STRIPE_CURRENCY || "bdt").toLowerCase(),
+						unit_amount: Math.round(parsedAmount * 100),
+						product_data: {
+							name: "Smart Bachelor Life Payment",
+						},
+					},
+					quantity: 1,
+				},
+			],
+			success_url: `${clientBaseUrl}/dashboard/payment?stripe=success&session_id={CHECKOUT_SESSION_ID}`,
+			cancel_url: `${clientBaseUrl}/dashboard/payment?stripe=cancelled`,
+			metadata: {
+				userId: String(req.user._id),
+				userEmail: req.user.email || "",
+				source: "smart-bachelor-life",
+			},
+		});
+
+		logger.info("Create Stripe checkout session success", {
+			...logCtx,
+			sessionId: session.id,
+			amount: parsedAmount,
+		});
+
+		return res.status(200).json({
+			success: true,
+			message: "Stripe checkout session created",
+			sessionId: session.id,
+			url: session.url,
+		});
+	} catch (error) {
+		logger.error("Create Stripe checkout session failed", {
+			...logCtx,
+			amount: parsedAmount,
+			error: getErrorMeta(error),
+		});
+
+		return res.status(500).json({
+			success: false,
+			message: "Failed to create Stripe checkout session",
+			error: error.message,
+		});
+	}
+}
+
+/**
+ * - verify a stripe checkout session and persist payment entry
+ * - POST /api/payment/stripe/confirm-session
+ * - requires user authentication
+ */
+async function confirmStripeCheckoutSession(req, res) {
+	const logCtx = getLogContext(req);
+	const sessionId = String(req.body?.sessionId || "").trim();
+
+	logger.info("Confirm Stripe checkout session attempt", {
+		...logCtx,
+		sessionId,
+	});
+
+	if (!sessionId) {
+		return res.status(400).json({
+			success: false,
+			message: "sessionId is required",
+		});
+	}
+
+	try {
+		const stripe = getStripeClient();
+		const session = await stripe.checkout.sessions.retrieve(sessionId, {
+			expand: ["payment_intent"],
+		});
+
+		if (!session || session.payment_status !== "paid") {
+			return res.status(400).json({
+				success: false,
+				message: "Stripe session is not paid yet",
+			});
+		}
+
+		if (session.metadata?.userId !== String(req.user._id)) {
+			return res.status(403).json({
+				success: false,
+				message: "This Stripe session does not belong to this user",
+			});
+		}
+
+		const transactionID =
+			typeof session.payment_intent === "string"
+				? session.payment_intent
+				: session.payment_intent?.id || session.id;
+
+		const existingPayment = await paymentModel.findOne({ transactionID });
+		if (existingPayment) {
+			if (String(existingPayment.userID) !== String(req.user._id)) {
+				return res.status(403).json({
+					success: false,
+					message: "This Stripe payment does not belong to this user",
+				});
+			}
+
+			await clearPaymentCache(logCtx);
+
+			return res.status(200).json({
+				success: true,
+				message: "Stripe payment already confirmed",
+				payment: existingPayment,
+			});
+		}
+
+		const group = await groupModel.findOne({
+			$or: [{ managerID: req.user._id }, { userIDs: req.user._id }],
+		});
+
+		if (!group) {
+			return res.status(404).json({
+				success: false,
+				message: "User is not part of any group",
+			});
+		}
+
+		const payment = await paymentModel.create({
+			groupID: group._id,
+			userID: req.user._id,
+			amount: Number(session.amount_total || 0) / 100,
+			paymentMethod: "Stripe",
+			senderNumber: "",
+			transactionID,
+			status: "COMPLETED",
+		});
+
+		await clearPaymentCache(logCtx);
+
+		logger.info("Confirm Stripe checkout session success", {
+			...logCtx,
+			sessionId,
+			paymentId: payment._id,
+			transactionID,
+		});
+
+		return res.status(200).json({
+			success: true,
+			message: "Stripe payment confirmed successfully",
+			payment,
+		});
+	} catch (error) {
+		logger.error("Confirm Stripe checkout session failed", {
+			...logCtx,
+			sessionId,
+			error: getErrorMeta(error),
+		});
+
+		return res.status(500).json({
+			success: false,
+			message: "Failed to confirm Stripe checkout session",
 			error: error.message,
 		});
 	}
@@ -624,6 +846,8 @@ async function getUserPayments(req, res) {
 
 module.exports = {
 	createPayment,
+	createStripeCheckoutSession,
+	confirmStripeCheckoutSession,
 	confirmPayment,
 	rejectPayment,
 	getPayments,
