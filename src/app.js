@@ -2,6 +2,11 @@ const express = require("express");
 const cors = require("cors");
 const envConfig = require("./config/env.config");
 const httpLoggerMiddleware = require("./middlewares/httpLogger.middleware");
+const {
+	swaggerUi,
+	swaggerSpec,
+	swaggerUiOptions,
+} = require("./config/swagger.config");
 
 /**
  * 	Routes Requires
@@ -47,6 +52,20 @@ app.get("/health", (req, res) => {
 		success: true,
 		message: "OK",
 	});
+});
+
+/**
+ * Swagger API documentation route
+ * - serves the Swagger UI at /api/docs
+ * - serves the raw Swagger JSON at /api/docs.json
+ */
+app.use(
+	"/api/docs",
+	swaggerUi.serve,
+	swaggerUi.setup(swaggerSpec, swaggerUiOptions),
+);
+app.get("/api/docs.json", (req, res) => {
+	res.status(200).json(swaggerSpec);
 });
 
 /**
