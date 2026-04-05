@@ -3,6 +3,7 @@ const express = require("express");
 const paymentController = require("../controllers/payment.controller");
 
 const authMiddleware = require("../middlewares/auth.middleware");
+const cacheMiddleware = require("../middlewares/cache.middleware");
 
 const paymentRouter = express.Router();
 
@@ -14,6 +15,7 @@ const paymentRouter = express.Router();
 paymentRouter.post(
 	"/",
 	authMiddleware.authUserMiddleware,
+	cacheMiddleware.invalidateCache(["payment"]),
 	paymentController.createPayment,
 );
 
@@ -25,6 +27,7 @@ paymentRouter.post(
 paymentRouter.post(
 	"/confirm/:paymentID",
 	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["payment"]),
 	paymentController.confirmPayment,
 );
 
@@ -37,6 +40,7 @@ paymentRouter.post(
 paymentRouter.get(
 	"/",
 	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.getFromCache("payment", 120),
 	paymentController.getPayments,
 );
 
@@ -48,6 +52,7 @@ paymentRouter.get(
 paymentRouter.get(
 	"/user",
 	authMiddleware.authUserMiddleware,
+	cacheMiddleware.getFromCache("payment", 120),
 	paymentController.getUserPayments,
 );
 
