@@ -13,16 +13,32 @@ const {
   authManagerMiddleware,
 } = require("../middlewares/auth.middleware");
 
-//  Create for manager only
+/**
+ * - create a new menu
+ * - POST /api/menus
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
 router.post("/", authManagerMiddleware, createMenu);
 
-//  Read for all users
+/**
+ * - get menus
+ * - GET /api/menus
+ * - protected route, requires valid Firebase ID token
+ */
 router.get("/", authUserMiddleware, getMenus);
 
-//  Update for manager only
+/**
+ * - update a menu
+ * - PATCH /api/menus/:id
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
 router.patch("/:id", authManagerMiddleware, updateMenu);
 
-//  Delete for manager only
+/**
+ * - delete a menu
+ * - DELETE /api/menus/:id
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
 router.delete("/:id", authManagerMiddleware, deleteMenu);
 
 module.exports = router;

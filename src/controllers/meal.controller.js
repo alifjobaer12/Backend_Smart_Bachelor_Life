@@ -98,6 +98,8 @@ exports.deleteMeal = async (req, res) => {
     mealId: req.params.id,
   });
 
+
+  
   try {
     const meal = await Meal.findByIdAndDelete(req.params.id);
 
