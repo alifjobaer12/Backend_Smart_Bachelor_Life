@@ -111,7 +111,6 @@ async function createPayment(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to create payment",
-			error: error.message,
 		});
 	}
 }
@@ -210,7 +209,6 @@ async function confirmPayment(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to confirm payment",
-			error: error.message,
 		});
 	}
 }
@@ -415,7 +413,6 @@ async function getPayments(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to fetch payments",
-			error: error.message,
 		});
 	}
 }
@@ -463,7 +460,6 @@ async function getUserPayments(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to fetch user payments",
-			error: error.message,
 		});
 	}
 }
