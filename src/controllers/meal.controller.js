@@ -6,9 +6,8 @@ const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 //  CREATE MEAL
 exports.createMeal = async (req, res) => {
 	const logCtx = getLogContext(req);
-	const { groupID, mealCount } = req.body;
+	const { groupID, mealCount, date } = req.body;
 	const parsedMealCount = Number(mealCount);
-	const date = new Date();
 
 	logger.info("Create meal attempt", {
 		...logCtx,
