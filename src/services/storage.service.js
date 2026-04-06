@@ -1,6 +1,7 @@
 const { ImageKit } = require("@imagekit/nodejs");
 
 const envConfig = require("../config/env.config");
+const { logger, getErrorMeta } = require("../utils/logger.util");
 
 // Initialize ImageKit client with credentials from environment variables
 const imagekitClint = new ImageKit({
@@ -16,14 +17,14 @@ const imagekitClint = new ImageKit({
  * @param {File} file - The file object containing the buffer to be uploaded.
  */
 async function uplodeFile(catagory, fileName, file) {
-	catagory = catagory.trim();
-	fileName = fileName.trim();
-
 	if (!catagory || !fileName || !file) {
 		throw new Error(
 			"Category, file name, and file are required for uploading",
 		);
 	}
+
+	catagory = String(catagory).trim();
+	fileName = String(fileName).trim();
 
 	if (catagory !== "expenses" && catagory !== "bazar") {
 		throw new Error(
@@ -46,7 +47,11 @@ async function uplodeFile(catagory, fileName, file) {
 
 		return result;
 	} catch (error) {
-		console.error("Error uploading file:", error);
+		logger.error("Error uploading file", {
+			error: getErrorMeta(error),
+			catagory,
+			fileName,
+		});
 		return null;
 	}
 }
