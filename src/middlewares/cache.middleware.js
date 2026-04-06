@@ -3,6 +3,40 @@ const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 
 const DEFAULT_TTL_SECONDS = 60;
 const DEFAULT_SCAN_COUNT = 100;
+const DELETE_CHUNK_SIZE = 500;
+
+function normalizeRedisKey(rawKey) {
+	if (typeof rawKey === "string") {
+		return rawKey;
+	}
+
+	if (Buffer.isBuffer(rawKey)) {
+		return rawKey.toString("utf8");
+	}
+
+	if (rawKey === null || rawKey === undefined) {
+		return null;
+	}
+
+	return String(rawKey);
+}
+
+function collectScannedKeys(keysToDelete, scanResult) {
+	if (Array.isArray(scanResult)) {
+		for (const key of scanResult) {
+			const normalizedKey = normalizeRedisKey(key);
+			if (normalizedKey) {
+				keysToDelete.push(normalizedKey);
+			}
+		}
+		return;
+	}
+
+	const normalizedKey = normalizeRedisKey(scanResult);
+	if (normalizedKey) {
+		keysToDelete.push(normalizedKey);
+	}
+}
 
 function buildCacheKey(req, prefix) {
 	const userId = req.user?._id?.toString?.() || "anonymous";
@@ -89,11 +123,11 @@ async function clearByPrefix(redisClient, keyPrefix, logCtx) {
 	const matchPattern = `cache:${keyPrefix}:*`;
 	const keysToDelete = [];
 
-	for await (const key of redisClient.scanIterator({
+	for await (const scanResult of redisClient.scanIterator({
 		MATCH: matchPattern,
 		COUNT: DEFAULT_SCAN_COUNT,
 	})) {
-		keysToDelete.push(key);
+		collectScannedKeys(keysToDelete, scanResult);
 	}
 
 	if (keysToDelete.length === 0) {
@@ -104,7 +138,10 @@ async function clearByPrefix(redisClient, keyPrefix, logCtx) {
 		return;
 	}
 
-	await redisClient.del(...keysToDelete);
+	for (let i = 0; i < keysToDelete.length; i += DELETE_CHUNK_SIZE) {
+		const keyChunk = keysToDelete.slice(i, i + DELETE_CHUNK_SIZE);
+		await redisClient.sendCommand(["DEL", ...keyChunk]);
+	}
 
 	logger.info("Cache invalidation success", {
 		...logCtx,

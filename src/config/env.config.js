@@ -65,20 +65,9 @@ if (!process.env.IMAGEKIT_URL_ENDPOINT) {
 	);
 }
 
-if (!process.env.CLIENT_ID) {
-	throw new Error("CLIENT_ID is not defined in the environment variables");
-}
-
-if (!process.env.CLIENT_SECRET) {
-	throw new Error(
-		"CLIENT_SECRET is not defined in the environment variables",
-	);
-}
-
-if (!process.env.REFRESH_TOKEN) {
-	throw new Error(
-		"REFRESH_TOKEN is not defined in the environment variables",
-	);
+if (!process.env.SENDGRID_API_KEY) {
+	throw new Error("SENDGRID_API_KEY is not defined in the environment variables");
+	
 }
 
 if (!process.env.EMAIL_USER) {
@@ -116,9 +105,7 @@ const envConfig = {
 	IMAGEKIT_PRIVATE_KEY: process.env.IMAGEKIT_PRIVATE_KEY,
 	IMAGEKIT_PUBLIC_KEY: process.env.IMAGEKIT_PUBLIC_KEY,
 	IMAGEKIT_URL_ENDPOINT: process.env.IMAGEKIT_URL_ENDPOINT,
-	CLIENT_ID: process.env.CLIENT_ID,
-	CLIENT_SECRET: process.env.CLIENT_SECRET,
-	REFRESH_TOKEN: process.env.REFRESH_TOKEN,
+	SENDGRID_API_KEY: process.env.SENDGRID_API_KEY,
 	EMAIL_USER: process.env.EMAIL_USER,
 	STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
 	STRIPE_CURRENCY: process.env.STRIPE_CURRENCY,
