@@ -1,20 +1,31 @@
 const nodemailer = require("nodemailer");
+const dns = require("node:dns");
 const { logger, getErrorMeta } = require("../utils/logger.util");
 
 const envConfig = require("../config/env.config");
+
+// Render free instances may not have IPv6 egress; prefer IPv4 when resolving SMTP hosts.
+dns.setDefaultResultOrder("ipv4first");
 
 /**
  * - create a transporter object using the Gmail service and OAuth2 authentication
  * - the transporter will be used to send emails from the application
  */
 const transporter = nodemailer.createTransport({
-	service: "gmail",
+	host: "smtp.gmail.com",
+	port: 587,
+	secure: false,
+	requireTLS: true,
 	auth: {
 		type: "OAuth2",
 		user: envConfig.EMAIL_USER,
 		clientId: envConfig.CLIENT_ID,
 		clientSecret: envConfig.CLIENT_SECRET,
 		refreshToken: envConfig.REFRESH_TOKEN,
+	},
+	tls: {
+		servername: "smtp.gmail.com",
+		minVersion: "TLSv1.2",
 	},
 });
 
