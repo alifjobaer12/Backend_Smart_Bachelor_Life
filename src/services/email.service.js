@@ -1,126 +1,27 @@
-const nodemailer = require("nodemailer");
-const dns = require("node:dns");
+const sgMail = require("@sendgrid/mail");
 const { logger, getErrorMeta } = require("../utils/logger.util");
-
 const envConfig = require("../config/env.config");
 
-// Render free instances may not have IPv6 egress; prefer IPv4 when resolving SMTP hosts.
-dns.setDefaultResultOrder("ipv4first");
+sgMail.setApiKey(envConfig.SENDGRID_API_KEY);
 
-const SMTP_HOST = "smtp.gmail.com";
-
-function createTransporter({ port, secure, requireTLS }) {
-	return nodemailer.createTransport({
-		host: SMTP_HOST,
-		port,
-		secure,
-		requireTLS,
-		connectionTimeout: 15000,
-		greetingTimeout: 10000,
-		socketTimeout: 20000,
-		auth: {
-			type: "OAuth2",
-			user: envConfig.EMAIL_USER,
-			clientId: envConfig.CLIENT_ID,
-			clientSecret: envConfig.CLIENT_SECRET,
-			refreshToken: envConfig.REFRESH_TOKEN,
-		},
-		tls: {
-			servername: SMTP_HOST,
-			minVersion: "TLSv1.2",
-		},
-	});
-}
-
-/**
- * - create a transporter object using the Gmail service and OAuth2 authentication
- * - the transporter will be used to send emails from the application
- */
-const primaryTransporter = createTransporter({
-	port: 587,
-	secure: false,
-	requireTLS: true,
-});
-
-const fallbackTransporter = createTransporter({
-	port: 465,
-	secure: true,
-	requireTLS: false,
-});
-
-function isNetworkConnectionError(error) {
-	const message = String(error?.message || "").toLowerCase();
-	const code = String(error?.code || "").toUpperCase();
-
-	return (
-		code === "ENETUNREACH" ||
-		code === "ETIMEDOUT" ||
-		message.includes("connection timeout") ||
-		message.includes("enetunreach")
-	);
-}
-
-// Verify the connection configuration
-primaryTransporter.verify((error, success) => {
-	if (error) {
-		logger.error("Primary email server connection failed:", {
-			error: getErrorMeta(error),
-		});
-
-		fallbackTransporter.verify((fallbackError) => {
-			if (fallbackError) {
-				logger.error("Fallback email server connection failed:", {
-					error: getErrorMeta(fallbackError),
-				});
-				return;
-			}
-
-			logger.info("Fallback email server is ready to send messages");
-		});
-	} else {
-		logger.info("✔️  Primary email server is ready to send messages");
-	}
-});
-
-// Function to send email
 const sendEmail = async (to, subject, text, html) => {
 	try {
-		const mailOptions = {
-			from: `"SBL" <${envConfig.EMAIL_USER}>`, // sender address
-			to, // list of receivers
-			subject, // Subject line
-			text, // plain text body
-			html, // html body
+		const msg = {
+			from: {
+				name: "SBL",
+				email: envConfig.EMAIL_USER
+			},
+			to,
+			subject,
+			text,
+			html,
 		};
 
-		const info = await primaryTransporter.sendMail(mailOptions);
-
-		logger.info("Message sent: %s", info.messageId);
+		await sgMail.send(msg);
+		logger.info(`Message sent successfully to ${to}`);
 	} catch (error) {
-		if (isNetworkConnectionError(error)) {
-			try {
-				const fallbackInfo = await fallbackTransporter.sendMail({
-					from: `"SBL" <${envConfig.EMAIL_USER}>`,
-					to,
-					subject,
-					text,
-					html,
-				});
-
-				logger.warn("Message sent using fallback SMTP transport", {
-					to,
-					subject,
-					messageId: fallbackInfo.messageId,
-				});
-				return;
-			} catch (fallbackError) {
-				logger.error("Fallback email send failed:", {
-					to,
-					subject,
-					error: getErrorMeta(fallbackError),
-				});
-				return;
-			}
+		if (error.response && error.response.body) {
+			console.error("SendGrid Detailed Error:", JSON.stringify(error.response.body, null, 2));
 		}
 
 		logger.error("Failed to send email:", {
