@@ -17,6 +17,8 @@ exports.createBazar = async (req, res) => {
     date,
   });
 
+
+  
   try {
     const user = await User.findOne({ firebaseUid: req.user.firebaseUid });
 
