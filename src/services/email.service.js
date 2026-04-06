@@ -7,52 +7,122 @@ const envConfig = require("../config/env.config");
 // Render free instances may not have IPv6 egress; prefer IPv4 when resolving SMTP hosts.
 dns.setDefaultResultOrder("ipv4first");
 
+const SMTP_HOST = "smtp.gmail.com";
+
+function createTransporter({ port, secure, requireTLS }) {
+	return nodemailer.createTransport({
+		host: SMTP_HOST,
+		port,
+		secure,
+		requireTLS,
+		connectionTimeout: 15000,
+		greetingTimeout: 10000,
+		socketTimeout: 20000,
+		auth: {
+			type: "OAuth2",
+			user: envConfig.EMAIL_USER,
+			clientId: envConfig.CLIENT_ID,
+			clientSecret: envConfig.CLIENT_SECRET,
+			refreshToken: envConfig.REFRESH_TOKEN,
+		},
+		tls: {
+			servername: SMTP_HOST,
+			minVersion: "TLSv1.2",
+		},
+	});
+}
+
 /**
  * - create a transporter object using the Gmail service and OAuth2 authentication
  * - the transporter will be used to send emails from the application
  */
-const transporter = nodemailer.createTransport({
-	host: "smtp.gmail.com",
+const primaryTransporter = createTransporter({
 	port: 587,
 	secure: false,
 	requireTLS: true,
-	auth: {
-		type: "OAuth2",
-		user: envConfig.EMAIL_USER,
-		clientId: envConfig.CLIENT_ID,
-		clientSecret: envConfig.CLIENT_SECRET,
-		refreshToken: envConfig.REFRESH_TOKEN,
-	},
-	tls: {
-		servername: "smtp.gmail.com",
-		minVersion: "TLSv1.2",
-	},
 });
 
+const fallbackTransporter = createTransporter({
+	port: 465,
+	secure: true,
+	requireTLS: false,
+});
+
+function isNetworkConnectionError(error) {
+	const message = String(error?.message || "").toLowerCase();
+	const code = String(error?.code || "").toUpperCase();
+
+	return (
+		code === "ENETUNREACH" ||
+		code === "ETIMEDOUT" ||
+		message.includes("connection timeout") ||
+		message.includes("enetunreach")
+	);
+}
+
 // Verify the connection configuration
-transporter.verify((error, success) => {
+primaryTransporter.verify((error, success) => {
 	if (error) {
-		logger.error("Email server connection failed:", {
+		logger.error("Primary email server connection failed:", {
 			error: getErrorMeta(error),
 		});
+
+		fallbackTransporter.verify((fallbackError) => {
+			if (fallbackError) {
+				logger.error("Fallback email server connection failed:", {
+					error: getErrorMeta(fallbackError),
+				});
+				return;
+			}
+
+			logger.info("Fallback email server is ready to send messages");
+		});
 	} else {
-		logger.info("✔️  Email server is ready to send messages");
+		logger.info("✔️  Primary email server is ready to send messages");
 	}
 });
 
 // Function to send email
 const sendEmail = async (to, subject, text, html) => {
 	try {
-		const info = await transporter.sendMail({
+		const mailOptions = {
 			from: `"SBL" <${envConfig.EMAIL_USER}>`, // sender address
 			to, // list of receivers
 			subject, // Subject line
 			text, // plain text body
 			html, // html body
-		});
+		};
+
+		const info = await primaryTransporter.sendMail(mailOptions);
 
 		logger.info("Message sent: %s", info.messageId);
 	} catch (error) {
+		if (isNetworkConnectionError(error)) {
+			try {
+				const fallbackInfo = await fallbackTransporter.sendMail({
+					from: `"SBL" <${envConfig.EMAIL_USER}>`,
+					to,
+					subject,
+					text,
+					html,
+				});
+
+				logger.warn("Message sent using fallback SMTP transport", {
+					to,
+					subject,
+					messageId: fallbackInfo.messageId,
+				});
+				return;
+			} catch (fallbackError) {
+				logger.error("Fallback email send failed:", {
+					to,
+					subject,
+					error: getErrorMeta(fallbackError),
+				});
+				return;
+			}
+		}
+
 		logger.error("Failed to send email:", {
 			to,
 			subject,
