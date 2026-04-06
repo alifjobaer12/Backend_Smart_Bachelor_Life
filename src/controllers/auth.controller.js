@@ -104,7 +104,7 @@ async function userRegisterController(req, res) {
 async function managerRegisterController(req, res) {
 	const logCtx = getLogContext(req);
 
-	const user = userModel.findOne({ email: req.body.email });
+	const user = await userModel.findOne({ email: req.body.email });
 
 	if (!user) {
 		return res.status(404).json({
@@ -218,6 +218,7 @@ async function userLoginController(req, res) {
  */
 async function userLogoutController(req, res) {
 	const logCtx = getLogContext(req);
+	const authHeader = req.headers.authorization;
 	const token = authHeader?.startsWith("Bearer ")
 		? authHeader.split(" ")[1]
 		: null;
