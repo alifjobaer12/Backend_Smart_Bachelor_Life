@@ -15,15 +15,22 @@ const {
  * - expenses routes
  * - group routes
  * - payment routes
+ * - meal routes
+ * - menu routes
+ * - bazar routes
  */
 const testRouter =
 	envConfig.NODE_ENV === "development"
 		? require("./routes/route.test")
 		: null;
+
 const authRouter = require("./routes/auth.route");
 const expensesRouter = require("./routes/expenses.route");
 const groupRouter = require("./routes/group.route");
 const paymentRouter = require("./routes/payment.route");
+const mealRouter = require("./routes/meal.route");
+const menuRouter = require("./routes/menu.route");
+const bazarRouter = require("./routes/bazar.route");
 
 // Create an Express application
 const app = express();
@@ -34,7 +41,7 @@ const allowedOrigins = [
 	"http://localhost:5000",
 ];
 
-// CORS configuration
+// CORS configuration & middleware
 app.use(
 	cors({
 		origin: envConfig.CLIENT_URL || allowedOrigins,
@@ -77,6 +84,9 @@ app.get("/api/docs.json", (req, res) => {
  * - expenses routes
  * - group routes
  * - payment routes
+ * - meal routes
+ * - menu routes
+ * - bazar routes
  */
 if (envConfig.NODE_ENV === "development" && testRouter) {
 	app.use("/api/test", testRouter);
@@ -85,5 +95,8 @@ app.use("/api/auth", authRouter);
 app.use("/api/expenses", expensesRouter);
 app.use("/api/group", groupRouter);
 app.use("/api/payment", paymentRouter);
+app.use("/api/meals", mealRouter);
+app.use("/api/menus", menuRouter);
+app.use("/api/bazar", bazarRouter);
 
 module.exports = app;

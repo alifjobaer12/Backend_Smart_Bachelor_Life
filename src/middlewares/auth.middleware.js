@@ -1,6 +1,6 @@
 const firebaseAdmin = require("../config/firebase.config");
 
-const tokenBlackListModel = require("../models/tokenBlacklist.model");
+const tokenBlackListModel = require("../models/tokenBlackList.model");
 const userModel = require("../models/user.model");
 const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 
