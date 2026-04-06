@@ -12,10 +12,7 @@ const {
 	authManagerMiddleware,
 } = require("../middlewares/auth.middleware");
 const cacheMiddleware = require("../middlewares/cache.middleware");
-
-//document url upload and save
-const multer = require("multer");
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = require("../middlewares/fileUpload.middleware");
 
 const bazarRouter = express.Router();
 
@@ -30,7 +27,7 @@ bazarRouter.post(
 	"/",
 	authManagerMiddleware,
 	cacheMiddleware.invalidateCache(["bazar"]),
-	upload.single("file"),
+	upload.uploadSingleFile("file"),
 	createBazar,
 );
 

@@ -4,9 +4,7 @@ const expenseController = require("../controllers/expenses.controller");
 
 const authMiddleware = require("../middlewares/auth.middleware");
 const casheMiddleware = require("../middlewares/cache.middleware");
-
-const multer = require("multer");
-const uplode = multer({ storage: multer.memoryStorage() });
+const upload = require("../middlewares/fileUpload.middleware");
 
 const expenseRouter = express.Router();
 
@@ -20,7 +18,7 @@ expenseRouter.post(
 	"/",
 	authMiddleware.authManagerMiddleware,
 	casheMiddleware.invalidateCache(["expenses"]),
-	uplode.single("file"),
+	upload.uploadSingleFile("file"),
 	expenseController.createExpense,
 );
 
