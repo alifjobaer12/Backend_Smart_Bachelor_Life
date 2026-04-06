@@ -2,7 +2,7 @@ const userModel = require("../models/user.model");
 
 const emailService = require("../services/email.service");
 
-const tokenBlackListModel = require("../models/tokenBlacklist.model");
+const tokenBlackListModel = require("../models/tokenBlackList.model");
 
 const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 
