@@ -120,6 +120,8 @@ const envConfig = {
 	CLIENT_SECRET: process.env.CLIENT_SECRET,
 	REFRESH_TOKEN: process.env.REFRESH_TOKEN,
 	EMAIL_USER: process.env.EMAIL_USER,
+	STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+	STRIPE_CURRENCY: process.env.STRIPE_CURRENCY,
 };
 
 module.exports = envConfig;
