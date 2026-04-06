@@ -2,14 +2,17 @@ const Menu = require("../models/menu.model");
 const User = require("../models/user.model");
 const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 
+
+//  CREATE MENU
 exports.createMenu = async (req, res) => {
   const logCtx = getLogContext(req);
-  const { title, items, date } = req.body;
+
+  //  correct fields from model
+  const { groupID, date, breakfast, lunch, dinner } = req.body;
 
   logger.info("Create menu attempt", {
     ...logCtx,
-    title,
-    itemsCount: items?.length || 0,
+    groupID,
     date,
   });
 
@@ -21,19 +24,46 @@ exports.createMenu = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
+    //  validation
+    if (!groupID) {
+      return res.status(400).json({
+        success: false,
+        message: "groupID is required",
+      });
+    }
+
     const menu = await Menu.create({
       userID: user._id,
-      ...req.body,
+      groupID,
+      date: date || new Date(), //  fixed date logic
+      breakfast,
+      lunch,
+      dinner,
     });
 
     logger.info("Menu created", { ...logCtx, menuId: menu._id, userId: user._id });
-    res.status(201).json({ success: true, data: menu });
+
+    res.status(201).json({
+      success: true,
+      data: menu,
+    });
+
   } catch (error) {
-    logger.error("Error creating menu", { ...logCtx, ...req.body, error: getErrorMeta(error) });
-    res.status(500).json({ success: false, error: error.message });
+    logger.error("Error creating menu", {
+      ...logCtx,
+      error: getErrorMeta(error),
+    });
+
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
   }
 };
 
+
+
+//  GET MENUS
 exports.getMenus = async (req, res) => {
   const logCtx = getLogContext(req);
 
@@ -43,16 +73,40 @@ exports.getMenus = async (req, res) => {
   });
 
   try {
-    const menus = await Menu.find(req.query).populate("userID", "displayName email");
+    //  validation
+    if (!req.query.groupID) {
+      return res.status(400).json({
+        success: false,
+        message: "groupID query is required",
+      });
+    }
+
+    const menus = await Menu.find({
+      groupID: req.query.groupID,
+    }).populate("userID", "displayName email");
 
     logger.info("Menus fetched", { ...logCtx, count: menus.length });
-    res.json({ success: true, data: menus });
+
+    res.json({
+      success: true,
+      data: menus,
+    });
+
   } catch (error) {
-    logger.error("Error fetching menus", { ...logCtx, query: req.query, error: getErrorMeta(error) });
-    res.status(500).json({ success: false });
+    logger.error("Error fetching menus", {
+      ...logCtx,
+      error: getErrorMeta(error),
+    });
+
+    res.status(500).json({
+      success: false,
+    });
   }
 };
 
+
+
+//  UPDATE MENU
 exports.updateMenu = async (req, res) => {
   const logCtx = getLogContext(req);
 
@@ -63,21 +117,44 @@ exports.updateMenu = async (req, res) => {
   });
 
   try {
-    const menu = await Menu.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const { breakfast, lunch, dinner } = req.body;
+
+    const menu = await Menu.findByIdAndUpdate(
+      req.params.id,
+      { breakfast, lunch, dinner }, //  controlled update
+      { new: true }
+    );
 
     if (!menu) {
       logger.warn("Menu not found for update", logCtx);
-      return res.status(404).json({ success: false, message: "Not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Not found",
+      });
     }
 
-    logger.info("Menu updated", { ...logCtx, menuId: menu?._id });
-    res.json({ success: true, data: menu });
+    logger.info("Menu updated", { ...logCtx, menuId: menu._id });
+
+    res.json({
+      success: true,
+      data: menu,
+    });
+
   } catch (error) {
-    logger.error("Error updating menu", { ...logCtx, menuId: req.params.id, updates: req.body, error: getErrorMeta(error) });
-    res.status(500).json({ success: false });
+    logger.error("Error updating menu", {
+      ...logCtx,
+      error: getErrorMeta(error),
+    });
+
+    res.status(500).json({
+      success: false,
+    });
   }
 };
 
+
+
+//  DELETE MENU
 exports.deleteMenu = async (req, res) => {
   const logCtx = getLogContext(req);
 
@@ -91,13 +168,25 @@ exports.deleteMenu = async (req, res) => {
 
     if (!menu) {
       logger.warn("Menu not found for delete", logCtx);
-      return res.status(404).json({ success: false });
+      return res.status(404).json({
+        success: false,
+      });
     }
 
     logger.info("Menu deleted", { ...logCtx, menuId: menu._id });
-    res.json({ success: true });
+
+    res.json({
+      success: true,
+    });
+
   } catch (error) {
-    logger.error("Error deleting menu", { ...logCtx, menuId: req.params.id, error: getErrorMeta(error) });
-    res.status(500).json({ success: false });
+    logger.error("Error deleting menu", {
+      ...logCtx,
+      error: getErrorMeta(error),
+    });
+
+    res.status(500).json({
+      success: false,
+    });
   }
 };
