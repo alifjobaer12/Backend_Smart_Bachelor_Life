@@ -120,27 +120,33 @@ async function sendJoinCode(req, res) {
 
 		const invalidEmails = [];
 		const successfullyInvitedEmails = [];
+		const emailRegex = /^\S+@\S+\.\S+$/;
 
-		for (const email of userList) {
+		for (const rawEmail of userList) {
+			const email = String(rawEmail || "").trim().toLowerCase();
+
+			if (!emailRegex.test(email)) {
+				invalidEmails.push(email || String(rawEmail || ""));
+				logger.debug("Send join code: invalid email format", {
+					...logCtx,
+					email,
+				});
+				continue;
+			}
+
 			try {
-				const user = await userModel.findOne({ email });
-
-				if (!user) {
-					invalidEmails.push(email);
-					logger.debug("Send join code: user not found", {
-						...logCtx,
-						email,
-					});
-					continue;
-				}
+				const user = await userModel.findOne({ email }).select(
+					"displayName",
+				);
+				const receiverName = user?.displayName || "there";
 
 				await emailService.sendJoinCodeEmail(
 					email,
-					user.displayName,
+					receiverName,
 					group.title,
 					joinCode,
 				);
-				successfullyInvitedEmails.push(user.email);
+				successfullyInvitedEmails.push(email);
 
 				logger.debug("Send join code: email sent", {
 					...logCtx,
@@ -195,6 +201,8 @@ async function sendJoinCode(req, res) {
 					? "Join codes sent with some failures"
 					: "Join codes sent successfully",
 			invalidEmails,
+			successfullyInvitedEmails,
+			joinCode,
 		});
 	} catch (error) {
 		logger.error("Send join code failed", {
@@ -292,7 +300,13 @@ async function joinByJoinCode(req, res) {
 
 		// Add user to the group
 		group.userIDs.push(userId);
+		group.invitedEmails.pull(req.user.email);
 		await group.save();
+
+		await userModel.findByIdAndUpdate(userId, {
+			role: "USER",
+			roleSelectionCompleted: true,
+		});
 
 		logger.info("Join group by code success", {
 			...logCtx,
@@ -444,6 +458,7 @@ async function getGroupDetails(req, res) {
 			.findOne({
 				managerID: req.user._id,
 			})
+			.select("+invitedEmails")
 			.populate("userIDs", "email displayName");
 
 		if (!group) {
@@ -478,6 +493,125 @@ async function getGroupDetails(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "An error occurred while retrieving group details",
+		});
+	}
+}
+
+/**
+ * - update the payment notice for the manager
+ * - PATCH /api/group/notice
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+async function updateGroupPaymentNotice(req, res) {
+	const logCtx = getLogContext(req);
+	const { paymentNotice } = req.body;
+
+	logger.info("Update group payment notice attempt", {
+		...logCtx,
+		paymentNotice,
+	});
+
+	if (typeof paymentNotice !== "string") {
+		return res.status(400).json({
+			success: false,
+			message: "paymentNotice is required",
+		});
+	}
+
+	try {
+		const group = await groupModel.findOne({ managerID: req.user._id });
+
+		if (!group) {
+			return res.status(404).json({
+				success: false,
+				message: "Group not found for the manager",
+			});
+		}
+
+		group.paymentNotice = paymentNotice.trim();
+		await group.save();
+
+		logger.info("Update group payment notice success", {
+			...logCtx,
+			groupId: group._id,
+			paymentNotice: group.paymentNotice,
+		});
+
+		return res.status(200).json({
+			success: true,
+			message: "Payment notice updated successfully",
+			group,
+		});
+	} catch (error) {
+		logger.error("Update group payment notice failed", {
+			...logCtx,
+			error: getErrorMeta(error),
+		});
+
+		return res.status(500).json({
+			success: false,
+			message: "An error occurred while updating payment notice",
+		});
+	}
+}
+
+/**
+ * - revoke an invited email before joining
+ * - POST /api/groups/revoke-invite
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+async function revokeInvite(req, res) {
+	const logCtx = getLogContext(req);
+	const { email } = req.body;
+
+	logger.info("Revoke invite attempt", {
+		...logCtx,
+		email,
+	});
+
+	if (!email) {
+		return res.status(400).json({
+			success: false,
+			message: "email is required",
+		});
+	}
+
+	try {
+		const group = await groupModel
+			.findOne({ managerID: req.user._id })
+			.select("+invitedEmails");
+
+		if (!group) {
+			return res.status(404).json({
+				success: false,
+				message: "Group not found for the manager",
+			});
+		}
+
+		group.invitedEmails.pull(String(email).trim().toLowerCase());
+		await group.save();
+
+		logger.info("Revoke invite success", {
+			...logCtx,
+			email,
+			groupId: group._id,
+		});
+
+		return res.status(200).json({
+			success: true,
+			message: "Invite revoked successfully",
+			group,
+		});
+	} catch (error) {
+		logger.error("Revoke invite failed", {
+			...logCtx,
+			email,
+			error: getErrorMeta(error),
+		});
+
+		return res.status(500).json({
+			success: false,
+			message: "An error occurred while revoking invite",
 		});
 	}
 }
@@ -541,6 +675,134 @@ async function getGroupDetailsForMember(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "An error occurred while retrieving group details",
+		});
+	}
+}
+
+/**
+ * - update the group title for the manager
+ * - PATCH /api/group/title
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+async function updateGroupTitle(req, res) {
+	const logCtx = getLogContext(req);
+	const { title } = req.body;
+
+	logger.info("Update group title attempt", {
+		...logCtx,
+		title,
+	});
+
+	if (!title || String(title).trim() === "") {
+		return res.status(400).json({
+			success: false,
+			message: "title is required",
+		});
+	}
+
+	try {
+		const group = await groupModel.findOne({ managerID: req.user._id });
+
+		if (!group) {
+			return res.status(404).json({
+				success: false,
+				message: "Group not found for the manager",
+			});
+		}
+
+		group.title = String(title).trim();
+		await group.save();
+
+		logger.info("Update group title success", {
+			...logCtx,
+			groupId: group._id,
+			title: group.title,
+		});
+
+		return res.status(200).json({
+			success: true,
+			message: "Group title updated successfully",
+			group,
+		});
+	} catch (error) {
+		logger.error("Update group title failed", {
+			...logCtx,
+			error: getErrorMeta(error),
+		});
+
+		return res.status(500).json({
+			success: false,
+			message: "An error occurred while updating group title",
+		});
+	}
+}
+
+/**
+ * - allow a member to leave their group
+ * - POST /api/group/leave
+ * - protected route, requires valid Firebase ID token and group membership
+ */
+async function leaveGroup(req, res) {
+	const logCtx = getLogContext(req);
+
+	logger.info("Leave group attempt", {
+		...logCtx,
+		userId: req.user._id,
+		email: req.user.email,
+	});
+
+	try {
+		const group = await groupModel
+			.findOne({
+				$or: [{ managerID: req.user._id }, { userIDs: req.user._id }],
+			})
+			.select("+invitedEmails");
+
+		if (!group) {
+			return res.status(404).json({
+				success: false,
+				message: "Group not found for the user",
+			});
+		}
+
+		if (String(group.managerID) === String(req.user._id)) {
+			return res.status(400).json({
+				success: false,
+				message:
+					"Manager cannot leave the group before transferring the manager role",
+			});
+		}
+
+		group.userIDs.pull(req.user._id);
+		if (group.invitedEmails?.pull) {
+			group.invitedEmails.pull(req.user.email);
+		}
+		await group.save();
+
+		await userModel.findByIdAndUpdate(req.user._id, {
+			roleSelectionCompleted: false,
+		});
+
+		logger.info("Leave group success", {
+			...logCtx,
+			groupId: group._id,
+			userId: req.user._id,
+		});
+
+		return res.status(200).json({
+			success: true,
+			message: "Left the group successfully",
+			group: null,
+		});
+	} catch (error) {
+		logger.error("Leave group failed", {
+			...logCtx,
+			error: getErrorMeta(error),
+		});
+
+		return res.status(500).json({
+			success: false,
+			message: "An error occurred while leaving the group",
 		});
 	}
 }
@@ -741,5 +1003,9 @@ module.exports = {
 	removeUserFromGroup,
 	getGroupDetails,
 	getGroupDetailsForMember,
+	revokeInvite,
+	updateGroupTitle,
+	updateGroupPaymentNotice,
+	leaveGroup,
 	chengeUserRole,
 };

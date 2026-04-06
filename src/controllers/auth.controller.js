@@ -1,4 +1,5 @@
 const userModel = require("../models/user.model");
+const groupModel = require("../models/group.model");
 
 const emailService = require("../services/email.service");
 
@@ -105,7 +106,9 @@ async function managerRegisterController(req, res) {
 	const logCtx = getLogContext(req);
 
 	try {
-		const user = await userModel.findOne({ email: req.body.email });
+		const user = await userModel
+			.findOne({ email: req.body.email })
+			.select("+role +roleSelectionCompleted");
 
 		if (!user) {
 			return res.status(404).json({
@@ -115,6 +118,7 @@ async function managerRegisterController(req, res) {
 		}
 
 		user.role = "MANAGER";
+		user.roleSelectionCompleted = true;
 		await user.save();
 
 		logger.info("Manager role assigned successfully", {
@@ -131,8 +135,7 @@ async function managerRegisterController(req, res) {
 	} catch (error) {
 		logger.error("Error promoting user to manager", {
 			...logCtx,
-			userId: user._id,
-			email: user.email,
+			email: req.body?.email,
 			error: getErrorMeta(error),
 		});
 		return res.status(500).json({
@@ -165,9 +168,11 @@ async function userLoginController(req, res) {
 	}
 
 	try {
-		const user = await userModel.findOne({
-			$or: [{ firebaseUid: uid }, { email }],
-		});
+		const user = await userModel
+			.findOne({
+				$or: [{ firebaseUid: uid }, { email }],
+			})
+			.select("+role +roleSelectionCompleted");
 
 		if (!user) {
 			logger.warn("Auth login rejected: user not found", {
@@ -184,6 +189,25 @@ async function userLoginController(req, res) {
 		user.lastLoginAt = new Date();
 		await user.save();
 
+		const group = await groupModel
+			.findOne({
+				$or: [{ managerID: user._id }, { userIDs: user._id }],
+			})
+			.populate("managerID", "email displayName")
+			.populate("userIDs", "email displayName");
+
+		const currentGroup = group
+			? {
+				id: group._id,
+				title: group.title,
+				address: group.address,
+				joinCode: group.joinCode,
+				paymentNotice: group.paymentNotice || "",
+				memberCount: (group.userIDs?.length || 0) + 1,
+				manager: group.managerID,
+			}
+			: null;
+
 		logger.info("Auth login success", {
 			...logCtx,
 			userId: user._id,
@@ -194,6 +218,7 @@ async function userLoginController(req, res) {
 			success: true,
 			message: "User logged in successfully",
 			user,
+			currentGroup,
 		});
 	} catch (error) {
 		logger.error("Auth login failed", {
