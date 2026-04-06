@@ -2,10 +2,11 @@ const Meal = require("../models/meal.model");
 const User = require("../models/user.model");
 const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 
-// Create Meal
+//  CREATE MEAL
 exports.createMeal = async (req, res) => {
   const logCtx = getLogContext(req);
-  const { groupID, date, mealCount } = req.body;
+  const { groupID, mealCount } = req.body;
+  const date = new Date();
 
   logger.info("Create meal attempt", {
     ...logCtx,
@@ -18,26 +19,46 @@ exports.createMeal = async (req, res) => {
     const user = await User.findOne({ firebaseUid: req.user.firebaseUid });
 
     if (!user) {
-      logger.warn("User not found in createMeal", logCtx);
       return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    //  VALIDATION
+    if (!groupID || mealCount === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "groupID and mealCount are required",
+      });
+    }
+
+    if (mealCount < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "mealCount cannot be negative",
+      });
     }
 
     const meal = await Meal.create({
       userID: user._id,
       groupID,
-      date: date || new Date(),
+      date,
       mealCount,
     });
 
-    logger.info("Meal created", { ...logCtx, mealId: meal._id, userId: user._id });
     res.status(201).json({ success: true, data: meal });
+
   } catch (error) {
-    logger.error("Error creating meal", { ...logCtx, groupID, date, mealCount, error: getErrorMeta(error) });
+    logger.error("Error creating meal", {
+      ...logCtx,
+      error: getErrorMeta(error),
+    });
+
     res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// Get Meals
+
+
+//  GET MEALS
 exports.getMeals = async (req, res) => {
   const logCtx = getLogContext(req);
   const { groupID, date } = req.query;
@@ -49,21 +70,39 @@ exports.getMeals = async (req, res) => {
   });
 
   try {
+    //  VALIDATION
+    if (!groupID) {
+      return res.status(400).json({
+        success: false,
+        message: "groupID query is required",
+      });
+    }
 
     const query = { groupID };
-    if (date) query.date = date;
 
-    const meals = await Meal.find(query).populate("userID", "displayName email");
+    //  Only filter date if user sends it
+    if (date) {
+      query.date = date;
+    }
 
-    logger.info("Meals fetched", { ...logCtx, count: meals.length });
+    const meals = await Meal.find(query)
+      .populate("userID", "displayName email");
+
     res.status(200).json({ success: true, data: meals });
+
   } catch (error) {
-    logger.error("Error fetching meals", { ...logCtx, groupID, date, error: getErrorMeta(error) });
+    logger.error("Error fetching meals", {
+      ...logCtx,
+      error: getErrorMeta(error),
+    });
+
     res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// Update
+
+
+//  UPDATE MEAL
 exports.updateMeal = async (req, res) => {
   const logCtx = getLogContext(req);
 
@@ -74,45 +113,60 @@ exports.updateMeal = async (req, res) => {
   });
 
   try {
-    const meal = await Meal.findByIdAndUpdate(req.params.id, req.body, { new: true });
-
-    if (!meal) {
-      logger.warn("Meal not found for update", logCtx);
-      return res.status(404).json({ success: false, message: "Not found" });
+    //  OPTIONAL VALIDATION
+    if (req.body.mealCount !== undefined && req.body.mealCount < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "mealCount cannot be negative",
+      });
     }
 
-    logger.info("Meal updated", { ...logCtx, mealId: meal._id });
+    const meal = await Meal.findByIdAndUpdate(
+      req.params.id,
+      { mealCount: req.body.mealCount }, //  controlled update
+      { new: true }
+    );
+
+    if (!meal) {
+      return res.status(404).json({
+        success: false,
+        message: "Meal Not found",
+      });
+    }
+
     res.json({ success: true, data: meal });
+
   } catch (error) {
-    logger.error("Error updating meal", { ...logCtx, mealId: req.params.id, updates: req.body, error: getErrorMeta(error) });
+    logger.error("Error updating meal", {
+      ...logCtx,
+      error: getErrorMeta(error),
+    });
+
     res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// Delete
+
+
+//  DELETE MEAL
 exports.deleteMeal = async (req, res) => {
   const logCtx = getLogContext(req);
 
-  logger.info("Delete meal attempt", {
-    ...logCtx,
-    mealId: req.params.id,
-  });
-
-
-  
   try {
     const meal = await Meal.findByIdAndDelete(req.params.id);
 
     if (!meal) {
-      logger.warn("Meal not found for delete", logCtx);
       return res.status(404).json({ success: false });
     }
 
-    logger.info("Meal deleted", { ...logCtx, mealId: meal._id });
     res.json({ success: true });
+
   } catch (error) {
-    logger.error("Error deleting meal", { ...logCtx, mealId: req.params.id, error: getErrorMeta(error) });
+    logger.error("Error deleting meal", {
+      ...logCtx,
+      error: getErrorMeta(error),
+    });
+
     res.status(500).json({ success: false, error: error.message });
   }
 };
-
