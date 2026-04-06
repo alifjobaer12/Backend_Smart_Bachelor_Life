@@ -32,10 +32,8 @@ const mealRouter = require("./routes/meal.route");
 const menuRouter = require("./routes/menu.route");
 const bazarRouter = require("./routes/bazar.route");
 
+// Create an Express application
 const app = express();
-
-// middlewares
-app.use(express.json());
 
 const allowedOrigins = [
 	"http://localhost:3000",
@@ -43,6 +41,7 @@ const allowedOrigins = [
 	"http://localhost:5000",
 ];
 
+// CORS configuration & middleware
 app.use(
 	cors({
 		origin: envConfig.CLIENT_URL || allowedOrigins,
@@ -51,6 +50,7 @@ app.use(
 		allowedHeaders: ["Content-Type", "Authorization"],
 	}),
 );
+app.use(httpLoggerMiddleware);
 app.use(express.json());
 
 /**
