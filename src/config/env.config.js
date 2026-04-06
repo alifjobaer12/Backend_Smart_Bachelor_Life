@@ -65,6 +65,30 @@ if (!process.env.IMAGEKIT_URL_ENDPOINT) {
 	);
 }
 
+if (!process.env.CLIENT_ID) {
+	throw new Error("CLIENT_ID is not defined in the environment variables");
+}
+
+if (!process.env.CLIENT_SECRET) {
+	throw new Error(
+		"CLIENT_SECRET is not defined in the environment variables",
+	);
+}
+
+if (!process.env.REFRESH_TOKEN) {
+	throw new Error(
+		"REFRESH_TOKEN is not defined in the environment variables",
+	);
+}
+
+if (!process.env.EMAIL_USER) {
+	throw new Error("EMAIL_USER is not defined in the environment variables");
+}
+
+if (process.env.NODE_ENV === "production" && !process.env.CLIENT_URL) {
+	throw new Error("CLIENT_URL is required in production");
+}
+
 const envConfig = {
 	NODE_ENV: process.env.NODE_ENV || "development",
 	CLIENT_URL: process.env.CLIENT_URL,
@@ -80,6 +104,10 @@ const envConfig = {
 	IMAGEKIT_PRIVATE_KEY: process.env.IMAGEKIT_PRIVATE_KEY,
 	IMAGEKIT_PUBLIC_KEY: process.env.IMAGEKIT_PUBLIC_KEY,
 	IMAGEKIT_URL_ENDPOINT: process.env.IMAGEKIT_URL_ENDPOINT,
+	CLIENT_ID: process.env.CLIENT_ID,
+	CLIENT_SECRET: process.env.CLIENT_SECRET,
+	REFRESH_TOKEN: process.env.REFRESH_TOKEN,
+	EMAIL_USER: process.env.EMAIL_USER,
 };
 
 module.exports = envConfig;
