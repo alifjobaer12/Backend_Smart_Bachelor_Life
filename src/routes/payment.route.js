@@ -20,6 +20,29 @@ paymentRouter.post(
 );
 
 /**
+ * - create a stripe checkout session
+ * - POST /api/payment/stripe/checkout-session
+ * - requires user authentication
+ */
+paymentRouter.post(
+	"/stripe/checkout-session",
+	authMiddleware.authUserMiddleware,
+	paymentController.createStripeCheckoutSession,
+);
+
+/**
+ * - confirm stripe checkout session and persist payment
+ * - POST /api/payment/stripe/confirm-session
+ * - requires user authentication
+ */
+paymentRouter.post(
+	"/stripe/confirm-session",
+	authMiddleware.authUserMiddleware,
+	cacheMiddleware.invalidateCache(["payment"]),
+	paymentController.confirmStripeCheckoutSession,
+);
+
+/**
  * - confirm a payment by transactionID for the authenticated user
  * - PATCH /api/payment/confirm/:paymentID
  * - requires user authentication
@@ -29,6 +52,18 @@ paymentRouter.post(
 	authMiddleware.authManagerMiddleware,
 	cacheMiddleware.invalidateCache(["payment"]),
 	paymentController.confirmPayment,
+);
+
+/**
+ * - reject a payment by transactionID for the authenticated manager
+ * - POST /api/payment/reject/:paymentID
+ * - requires manager authentication
+ */
+paymentRouter.post(
+	"/reject/:paymentID",
+	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["payment"]),
+	paymentController.rejectPayment,
 );
 
 /**

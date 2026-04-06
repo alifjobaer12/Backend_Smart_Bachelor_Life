@@ -56,6 +56,17 @@ groupRouter.post(
 );
 
 /**
+ * - revoke an invited email before joining
+ * - POST /api/groups/revoke-invite
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+groupRouter.post(
+	"/revoke-invite",
+	authMiddleware.authManagerMiddleware,
+	groupController.revokeInvite,
+);
+
+/**
  * - get group details for the manager
  * - GET /api/groups/details
  * - protected route, requires valid Firebase ID token and group manager role
@@ -77,6 +88,40 @@ groupRouter.get(
 	authMiddleware.authUserMiddleware,
 	cacheMiddleware.getFromCache("group", 120),
 	groupController.getGroupDetailsForMember,
+);
+
+/**
+ * - update the group title for the manager
+ * - PATCH /api/groups/title
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+groupRouter.patch(
+	"/title",
+	authMiddleware.authManagerMiddleware,
+	groupController.updateGroupTitle,
+);
+
+/**
+ * - update the payment notice for the manager
+ * - PATCH /api/groups/notice
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+groupRouter.patch(
+	"/notice",
+	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["group"]),
+	groupController.updateGroupPaymentNotice,
+);
+
+/**
+ * - leave a group as a member
+ * - POST /api/groups/leave
+ * - protected route, requires valid Firebase ID token and group membership
+ */
+groupRouter.post(
+	"/leave",
+	authMiddleware.authUserMiddleware,
+	groupController.leaveGroup,
 );
 
 /**

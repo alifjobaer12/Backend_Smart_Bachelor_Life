@@ -1,5 +1,5 @@
 const nodemailer = require("nodemailer");
-const { logger } = require("../utils/logger.util");
+const { logger, getErrorMeta } = require("../utils/logger.util");
 
 const envConfig = require("../config/env.config");
 
