@@ -194,7 +194,7 @@ async function createPayment(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to create payment",
-			error: error.message,
+			error: "An unexpected error occurred",
 		});
 	}
 }
@@ -271,7 +271,7 @@ async function createStripeCheckoutSession(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to create Stripe checkout session",
-			error: error.message,
+			error: "An unexpected error occurred",
 		});
 	}
 }
@@ -385,7 +385,7 @@ async function confirmStripeCheckoutSession(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to confirm Stripe checkout session",
-			error: error.message,
+			error: "An unexpected error occurred",
 		});
 	}
 }
@@ -486,7 +486,7 @@ async function confirmPayment(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to confirm payment",
-			error: error.message,
+			error: "An unexpected error occurred",
 		});
 	}
 }
@@ -586,7 +586,7 @@ async function rejectPayment(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to reject payment",
-			error: error.message,
+			error: "An unexpected error occurred",
 		});
 	}
 }
@@ -791,7 +791,7 @@ async function getPayments(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to fetch payments",
-			error: error.message,
+			error: "An unexpected error occurred",
 		});
 	}
 }
@@ -839,7 +839,7 @@ async function getUserPayments(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to fetch user payments",
-			error: error.message,
+			error: "An unexpected error occurred",
 		});
 	}
 }
