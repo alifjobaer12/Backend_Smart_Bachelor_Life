@@ -104,16 +104,16 @@ async function userRegisterController(req, res) {
 async function managerRegisterController(req, res) {
 	const logCtx = getLogContext(req);
 
-	const user = await userModel.findOne({ email: req.body.email });
-
-	if (!user) {
-		return res.status(404).json({
-			success: false,
-			message: "User not found",
-		});
-	}
-
 	try {
+		const user = await userModel.findOne({ email: req.body.email });
+
+		if (!user) {
+			return res.status(404).json({
+				success: false,
+				message: "User not found",
+			});
+		}
+
 		user.role = "MANAGER";
 		await user.save();
 

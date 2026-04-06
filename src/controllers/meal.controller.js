@@ -7,6 +7,7 @@ const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 exports.createMeal = async (req, res) => {
 	const logCtx = getLogContext(req);
 	const { groupID, mealCount } = req.body;
+	const parsedMealCount = Number(mealCount);
 	const date = new Date();
 
 	logger.info("Create meal attempt", {
@@ -33,10 +34,10 @@ exports.createMeal = async (req, res) => {
 			});
 		}
 
-		if (mealCount < 0) {
+		if (!Number.isFinite(parsedMealCount) || parsedMealCount < 0) {
 			return res.status(400).json({
 				success: false,
-				message: "mealCount cannot be negative",
+				message: "mealCount must be a non-negative number",
 			});
 		}
 
@@ -56,7 +57,7 @@ exports.createMeal = async (req, res) => {
 			userID: user._id,
 			groupID: group._id,
 			date,
-			mealCount,
+			mealCount: parsedMealCount,
 		});
 
 		res.status(201).json({ success: true, data: meal });
@@ -147,10 +148,23 @@ exports.updateMeal = async (req, res) => {
 
 	try {
 		//  OPTIONAL VALIDATION
-		if (req.body.mealCount !== undefined && req.body.mealCount < 0) {
+		if (req.body.mealCount !== undefined) {
+			const parsedMealCount = Number(req.body.mealCount);
+			if (!Number.isFinite(parsedMealCount) || parsedMealCount < 0) {
+				return res.status(400).json({
+					success: false,
+					message: "mealCount must be a non-negative number",
+				});
+			}
+		}
+
+		if (
+			req.body.date !== undefined &&
+			Number.isNaN(new Date(req.body.date).getTime())
+		) {
 			return res.status(400).json({
 				success: false,
-				message: "mealCount cannot be negative",
+				message: "date must be a valid date",
 			});
 		}
 
@@ -187,7 +201,7 @@ exports.updateMeal = async (req, res) => {
 
 		const updates = {};
 		if (req.body.mealCount !== undefined) {
-			updates.mealCount = req.body.mealCount;
+			updates.mealCount = Number(req.body.mealCount);
 		}
 		if (req.body.date !== undefined) {
 			updates.date = req.body.date;
