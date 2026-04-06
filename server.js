@@ -6,12 +6,23 @@ const { logger } = require("./src/utils/logger.util");
 const connectDB = require("./src/config/mongoDB.config");
 const { connectRedis } = require("./src/config/redis.config");
 
-connectDB();
-connectRedis();
-
 const PORT = envConfig.PORT || 3000;
 
-// Start the server
-app.listen(PORT, () => {
-	logger.info(`SBL server started on port ${PORT} in ${envConfig.NODE_ENV} mode`);
-});
+async function startServer() {
+	try {
+		await Promise.all([connectDB(), connectRedis()]);
+
+		app.listen(PORT, () => {
+			logger.info(
+				`SBL server started on port ${PORT} in ${envConfig.NODE_ENV} mode`,
+			);
+		});
+	} catch (error) {
+		logger.error("Failed to start server", {
+			error: error?.message,
+		});
+		process.exit(1);
+	}
+}
+
+startServer();
