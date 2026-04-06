@@ -104,7 +104,7 @@ async function clearByPrefix(redisClient, keyPrefix, logCtx) {
 		return;
 	}
 
-	await redisClient.del(keysToDelete);
+	await redisClient.del(...keysToDelete);
 
 	logger.info("Cache invalidation success", {
 		...logCtx,

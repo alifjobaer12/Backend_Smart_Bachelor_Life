@@ -89,6 +89,18 @@ if (process.env.NODE_ENV === "production" && !process.env.CLIENT_URL) {
 	throw new Error("CLIENT_URL is required in production");
 }
 
+if (!process.env.STRIPE_SECRET_KEY) {
+	throw new Error(
+		"STRIPE_SECRET_KEY is not defined in the environment variables",
+	);
+}
+
+if (!process.env.STRIPE_CURRENCY) {
+	throw new Error(
+		"STRIPE_CURRENCY is not defined in the environment variables",
+	);
+}
+
 const envConfig = {
 	NODE_ENV: process.env.NODE_ENV || "development",
 	CLIENT_URL: process.env.CLIENT_URL,

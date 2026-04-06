@@ -41,10 +41,14 @@ const allowedOrigins = [
 	"http://localhost:5173",
 ];
 
+if (envConfig.CLIENT_URL) {
+	allowedOrigins.push(envConfig.CLIENT_URL);
+}
+
 // CORS configuration & middleware
 app.use(
 	cors({
-		origin: envConfig.CLIENT_URL || allowedOrigins,
+		origin: allowedOrigins,
 		methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
 		credentials: true,
 		allowedHeaders: ["Content-Type", "Authorization"],
