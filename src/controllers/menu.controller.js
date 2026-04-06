@@ -185,6 +185,8 @@ exports.deleteMenu = async (req, res) => {
       error: getErrorMeta(error),
     });
 
+
+    
     res.status(500).json({
       success: false,
     });
