@@ -1,28 +1,20 @@
 const express = require("express");
 
-
-
-
 const {
-  createBazar,
-  getBazar,
-  updateBazar,
-  deleteBazar,
+	createBazar,
+	getBazar,
+	updateBazar,
+	deleteBazar,
 } = require("../controllers/bazar.controller");
 
 const {
-  authUserMiddleware,
-  authManagerMiddleware,
+	authUserMiddleware,
+	authManagerMiddleware,
 } = require("../middlewares/auth.middleware");
-
-
-//document url upload and save
-const multer = require("multer");
-const upload = multer({ storage: multer.memoryStorage() });
+const cacheMiddleware = require("../middlewares/cache.middleware");
+const upload = require("../middlewares/fileUpload.middleware");
 
 const bazarRouter = express.Router();
-
-
 
 // Create (manager)
 /**
@@ -31,8 +23,13 @@ const bazarRouter = express.Router();
  * - protected route, requires valid Firebase ID token and group manager role
  * - expects multipart/form-data with field: file
  */
-bazarRouter.post("/", authManagerMiddleware,upload.single("file"), createBazar);
-
+bazarRouter.post(
+	"/",
+	authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["bazar"]),
+	upload.uploadSingleFile("file"),
+	createBazar,
+);
 
 // Read (all users)
 /**
@@ -40,7 +37,12 @@ bazarRouter.post("/", authManagerMiddleware,upload.single("file"), createBazar);
  * - GET /api/bazar
  * - protected route, requires valid Firebase ID token
  */
-bazarRouter.get("/", authUserMiddleware, getBazar);
+bazarRouter.get(
+	"/",
+	authUserMiddleware,
+	cacheMiddleware.getFromCache("bazar", 120),
+	getBazar,
+);
 
 // Update (manager)
 /**
@@ -48,7 +50,12 @@ bazarRouter.get("/", authUserMiddleware, getBazar);
  * - PATCH /api/bazar/:id
  * - protected route, requires valid Firebase ID token and group manager role
  */
-bazarRouter.patch("/:id", authManagerMiddleware, updateBazar);
+bazarRouter.patch(
+	"/:id",
+	authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["bazar"]),
+	updateBazar,
+);
 
 // Delete (manager)
 /**
@@ -56,6 +63,11 @@ bazarRouter.patch("/:id", authManagerMiddleware, updateBazar);
  * - DELETE /api/bazar/:id
  * - protected route, requires valid Firebase ID token and group manager role
  */
-bazarRouter.delete("/:id", authManagerMiddleware, deleteBazar);
+bazarRouter.delete(
+	"/:id",
+	authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["bazar"]),
+	deleteBazar,
+);
 
 module.exports = bazarRouter;

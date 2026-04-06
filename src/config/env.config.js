@@ -65,39 +65,28 @@ if (!process.env.IMAGEKIT_URL_ENDPOINT) {
 	);
 }
 
+if (!process.env.CLIENT_ID) {
+	throw new Error("CLIENT_ID is not defined in the environment variables");
+}
+
+if (!process.env.CLIENT_SECRET) {
+	throw new Error(
+		"CLIENT_SECRET is not defined in the environment variables",
+	);
+}
+
+if (!process.env.REFRESH_TOKEN) {
+	throw new Error(
+		"REFRESH_TOKEN is not defined in the environment variables",
+	);
+}
+
 if (!process.env.EMAIL_USER) {
-	logger.warn(
-		"EMAIL_USER is not defined. Outgoing email features will be disabled.",
-	);
+	throw new Error("EMAIL_USER is not defined in the environment variables");
 }
 
-if (!process.env.EMAIL_PASS) {
-	logger.warn(
-		"EMAIL_PASS is not defined. If OAuth2 is not configured, email sending may fail.",
-	);
-}
-
-if (
-	!process.env.EMAIL_PASS &&
-	(!process.env.CLIENT_ID ||
-		!process.env.CLIENT_SECRET ||
-		!process.env.REFRESH_TOKEN)
-) {
-	logger.warn(
-		"OAuth2 email variables are incomplete. Set CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN or provide EMAIL_PASS.",
-	);
-}
-
-if (!process.env.STRIPE_SECRET_KEY) {
-	logger.warn(
-		"STRIPE_SECRET_KEY is not defined. Stripe checkout will be unavailable.",
-	);
-}
-
-if (!process.env.STRIPE_CURRENCY) {
-	logger.warn(
-		"STRIPE_CURRENCY is not defined. Default currency 'usd' will be used for Stripe checkout.",
-	);
+if (process.env.NODE_ENV === "production" && !process.env.CLIENT_URL) {
+	throw new Error("CLIENT_URL is required in production");
 }
 
 const envConfig = {
@@ -115,13 +104,10 @@ const envConfig = {
 	IMAGEKIT_PRIVATE_KEY: process.env.IMAGEKIT_PRIVATE_KEY,
 	IMAGEKIT_PUBLIC_KEY: process.env.IMAGEKIT_PUBLIC_KEY,
 	IMAGEKIT_URL_ENDPOINT: process.env.IMAGEKIT_URL_ENDPOINT,
-	EMAIL_USER: process.env.EMAIL_USER,
-	EMAIL_PASS: process.env.EMAIL_PASS,
 	CLIENT_ID: process.env.CLIENT_ID,
 	CLIENT_SECRET: process.env.CLIENT_SECRET,
 	REFRESH_TOKEN: process.env.REFRESH_TOKEN,
-	STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
-	STRIPE_CURRENCY: process.env.STRIPE_CURRENCY,
+	EMAIL_USER: process.env.EMAIL_USER,
 };
 
 module.exports = envConfig;

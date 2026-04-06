@@ -989,8 +989,7 @@ async function chengeUserRole(req, res) {
 
 		return res.status(500).json({
 			success: false,
-			message:
-				error.message || "An error occurred while changing user role",
+			message: "An error occurred while changing user role",
 		});
 	} finally {
 		await session.endSession();
