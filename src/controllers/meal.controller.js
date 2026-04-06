@@ -52,7 +52,10 @@ exports.createMeal = async (req, res) => {
       error: getErrorMeta(error),
     });
 
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: "An error occurred while creating the meal",
+    });
   }
 };
 
@@ -88,7 +91,10 @@ exports.getMeals = async (req, res) => {
     const meals = await Meal.find(query)
       .populate("userID", "displayName email");
 
-    res.status(200).json({ success: true, data: meals });
+    res.status(200).json({ 
+      success: true, 
+      message: "Meals fetched successfully",
+      data: meals });
 
   } catch (error) {
     logger.error("Error fetching meals", {
@@ -96,7 +102,10 @@ exports.getMeals = async (req, res) => {
       error: getErrorMeta(error),
     });
 
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      message: "An error occurred while fetching meals"
+    });
   }
 };
 
@@ -134,7 +143,10 @@ exports.updateMeal = async (req, res) => {
       });
     }
 
-    res.json({ success: true, data: meal });
+    res.status(200).json({ success: true,
+      message: "Meal updated successfully",
+      data: meal 
+    });
 
   } catch (error) {
     logger.error("Error updating meal", {
@@ -142,7 +154,7 @@ exports.updateMeal = async (req, res) => {
       error: getErrorMeta(error),
     });
 
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: "An error occurred while updating the meal"  });
   }
 };
 
@@ -156,10 +168,10 @@ exports.deleteMeal = async (req, res) => {
     const meal = await Meal.findByIdAndDelete(req.params.id);
 
     if (!meal) {
-      return res.status(404).json({ success: false });
+      return res.status(404).json({ success: false, message: "Meal not found" });
     }
 
-    res.json({ success: true });
+    res.status(200).json({ success: true, message: "Meal deleted successfully" });
 
   } catch (error) {
     logger.error("Error deleting meal", {
@@ -167,6 +179,6 @@ exports.deleteMeal = async (req, res) => {
       error: getErrorMeta(error),
     });
 
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: "An error occurred while deleting the meal" });
   }
 };

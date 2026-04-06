@@ -2,9 +2,12 @@ const Bazar = require("../models/bazar.model");
 const User = require("../models/user.model");
 const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 
+const storageService = require("../services/storage.service");
+
 //  CREATE BAZAR
 exports.createBazar = async (req, res) => {
   const logCtx = getLogContext(req);
+  const file = req.file;
 
   const { groupID,  item, quantity, price, documentURL } = req.body;
 const date = new Date();
@@ -18,6 +21,8 @@ const date = new Date();
   });
 
   try {
+
+    // not needed
     const user = await User.findOne({ firebaseUid: req.user.firebaseUid });
 
     if (!user) {
@@ -25,7 +30,7 @@ const date = new Date();
     }
 
     //  VALIDATION (BODY)
-    if (!groupID || !date || !documentURL) {
+    if (!groupID || !date || !documentURL) {  // no need documentURL
       return res.status(400).json({
         success: false,
         message: "groupID, date and documentURL are required",
@@ -48,6 +53,36 @@ const date = new Date();
       });
     }
 
+    if (!file) {
+		logger.warn("Create expense failed: no file uploaded", {
+			...logCtx
+		});
+
+		return res.status(400).json({
+			success: false,
+			message: "file is required",
+		});
+	}
+
+    const documentURL = await storageService.uplodeFile(
+          "bazar",
+          `bazar_${group._id}`,
+          file,
+        );
+    
+        if (!documentURL) {
+          logger.error("Expense document upload failed", {
+            ...logCtx,
+            groupId: group._id,
+            fileName: file.originalname,
+          });
+    
+          return res.status(500).json({
+            success: false,
+            message: "Failed to upload document",
+          });
+        }
+
     const bazar = await Bazar.create({
       userID: user._id,
       groupID,
@@ -55,13 +90,14 @@ const date = new Date();
       item,
       quantity,
       price,
-      documentURL,
+      documentURL: documentURL.url,  // use the uploaded file URL
     });
 
     logger.info("Bazar created", { ...logCtx, bazarId: bazar._id });
 
     res.status(201).json({
       success: true,
+      message: "Bazar item created successfully",
       data: bazar,
     });
   } catch (error) {
@@ -72,6 +108,7 @@ const date = new Date();
 
     res.status(500).json({
       success: false,
+      message: "An error occurred while creating the bazar item",
       error: error.message,
     });
   }
@@ -101,8 +138,9 @@ exports.getBazar = async (req, res) => {
 
     logger.info("Bazar fetched", { ...logCtx, count: bazar.length });
 
-    res.json({
+    res.status(200).json({
       success: true,
+      message: "Bazar items fetched successfully",
       data: bazar,
     });
   } catch (error) {
@@ -114,9 +152,11 @@ exports.getBazar = async (req, res) => {
 
     res.status(500).json({
       success: false,
+      message: "An error occurred while fetching bazar items",
     });
   }
 };
+
 
 //  UPDATE BAZAR
 exports.updateBazar = async (req, res) => {

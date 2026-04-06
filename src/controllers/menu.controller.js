@@ -45,6 +45,7 @@ exports.createMenu = async (req, res) => {
 
     res.status(201).json({
       success: true,
+      message: "Menu created successfully",
       data: menu,
     });
 
@@ -56,7 +57,7 @@ exports.createMenu = async (req, res) => {
 
     res.status(500).json({
       success: false,
-      error: error.message,
+      message: "An error occurred while creating the menu",
     });
   }
 };
@@ -87,8 +88,9 @@ exports.getMenus = async (req, res) => {
 
     logger.info("Menus fetched", { ...logCtx, count: menus.length });
 
-    res.json({
+    res.status(200).json({
       success: true,
+      message: "Menus fetched successfully",
       data: menus,
     });
 
@@ -100,6 +102,7 @@ exports.getMenus = async (req, res) => {
 
     res.status(500).json({
       success: false,
+      message: "An error occurred while fetching menus",
     });
   }
 };
@@ -109,6 +112,7 @@ exports.getMenus = async (req, res) => {
 //  UPDATE MENU
 exports.updateMenu = async (req, res) => {
   const logCtx = getLogContext(req);
+  const { breakfast, lunch, dinner } = req.body;
 
   logger.info("Update menu attempt", {
     ...logCtx,
@@ -116,9 +120,15 @@ exports.updateMenu = async (req, res) => {
     updates: req.body,
   });
 
-  try {
-    const { breakfast, lunch, dinner } = req.body;
+  if(!breakfast && !lunch && !dinner) {
+    return res.status(400).json({
+      success: false,
+      message: "At least one of breakfast, lunch, or dinner must be provided for update",
+    });
+  }
 
+
+  try {
     const menu = await Menu.findByIdAndUpdate(
       req.params.id,
       { breakfast, lunch, dinner }, //  controlled update
@@ -129,14 +139,15 @@ exports.updateMenu = async (req, res) => {
       logger.warn("Menu not found for update", logCtx);
       return res.status(404).json({
         success: false,
-        message: "Not found",
+        message: "Menu not found",
       });
     }
 
     logger.info("Menu updated", { ...logCtx, menuId: menu._id });
 
-    res.json({
+    res.status(200).json({
       success: true,
+      message: "Menu updated successfully",
       data: menu,
     });
 
@@ -148,6 +159,7 @@ exports.updateMenu = async (req, res) => {
 
     res.status(500).json({
       success: false,
+      message: "An error occurred while updating the menu",
     });
   }
 };
@@ -170,13 +182,15 @@ exports.deleteMenu = async (req, res) => {
       logger.warn("Menu not found for delete", logCtx);
       return res.status(404).json({
         success: false,
+        message: "Menu not found",
       });
     }
 
     logger.info("Menu deleted", { ...logCtx, menuId: menu._id });
 
-    res.json({
+    res.status(200).json({
       success: true,
+      message: "Menu deleted successfully",
     });
 
   } catch (error) {
@@ -185,10 +199,9 @@ exports.deleteMenu = async (req, res) => {
       error: getErrorMeta(error),
     });
 
-
-    
     res.status(500).json({
       success: false,
+      message: "An error occurred while deleting the menu",
     });
   }
 };
