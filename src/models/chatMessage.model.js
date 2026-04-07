@@ -18,6 +18,22 @@ const chatMessageSchema = new mongoose.Schema(
             required: [true, "text is required for chat message"],
             maxlength: [2000, "text cannot exceed 2000 characters"],
         },
+        readBy: {
+            type: [
+                {
+                    userID: {
+                        type: mongoose.Schema.Types.ObjectId,
+                        ref: "user",
+                        required: true,
+                    },
+                    readAt: {
+                        type: Date,
+                        default: Date.now,
+                    },
+                },
+            ],
+            default: [],
+        },
     },
     {
         timestamps: true,
