@@ -10,7 +10,7 @@ const authRouter = express.Router();
 /**
  * - POST /api/auth/register
  * - user registration
- * - open to public
+ * - requires a valid Firebase ID token
  */
 authRouter.post(
 	"/register",

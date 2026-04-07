@@ -180,14 +180,10 @@ const options = {
 				AuthRegisterRequest: {
 					type: "object",
 					properties: {
-						firebaseUid: { type: "string" },
-						email: { type: "string", format: "email" },
 						displayName: { type: "string" },
 						photoURL: { type: "string" },
 						provider: { type: "string" },
-						lastLoginAt: { type: "string", format: "date-time" },
 					},
-					required: ["firebaseUid", "email"],
 				},
 				ManagerRegisterRequest: {
 					type: "object",
@@ -587,6 +583,7 @@ const options = {
 				post: {
 					tags: ["Auth"],
 					summary: "Register user",
+					security: [{ bearerAuth: [] }],
 					requestBody: {
 						required: true,
 						content: {
@@ -3845,7 +3842,7 @@ const options = {
 				},
 			},
 			"/api/payment/confirm/{paymentID}": {
-				post: {
+				patch: {
 					tags: ["Payment"],
 					summary: "Confirm payment (manager only)",
 					security: [{ bearerAuth: [] }],
