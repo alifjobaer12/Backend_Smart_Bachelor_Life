@@ -6,6 +6,38 @@ const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 
 let stripeClient;
 
+function getConfiguredClientOrigins() {
+	return String(envConfig.CLIENT_URL || "")
+		.split(",")
+		.map((origin) => origin.trim())
+		.filter(Boolean);
+}
+
+function getSafeClientBaseUrl(redirectBaseUrl) {
+	const defaultClientUrl = "http://localhost:5173";
+	const configuredClientOrigins = getConfiguredClientOrigins();
+	const fallbackClientUrl = configuredClientOrigins[0] || defaultClientUrl;
+
+	if (!redirectBaseUrl) {
+		return fallbackClientUrl;
+	}
+
+	try {
+		const parsed = new URL(redirectBaseUrl);
+		const normalizedOrigin = parsed.origin;
+		const isConfigured = configuredClientOrigins.includes(normalizedOrigin);
+		const isLocalhost = /^https?:\/\/localhost(?::\d+)?$/i.test(normalizedOrigin);
+
+		if (isConfigured || isLocalhost) {
+			return normalizedOrigin;
+		}
+	} catch (_) {
+		// Ignore invalid URL and use fallback origin.
+	}
+
+	return fallbackClientUrl;
+}
+
 function getStripeClient() {
 	if (stripeClient) {
 		return stripeClient;
@@ -207,6 +239,7 @@ async function createPayment(req, res) {
 async function createStripeCheckoutSession(req, res) {
 	const logCtx = getLogContext(req);
 	const parsedAmount = Number(req.body?.amount);
+	const redirectBaseUrl = String(req.body?.redirectBaseUrl || "").trim();
 
 	logger.info("Create Stripe checkout session attempt", {
 		...logCtx,
@@ -222,8 +255,7 @@ async function createStripeCheckoutSession(req, res) {
 
 	try {
 		const stripe = getStripeClient();
-		const clientBaseUrl =
-			envConfig.CLIENT_URL || req.headers.origin || "http://localhost:5173";
+		const clientBaseUrl = getSafeClientBaseUrl(redirectBaseUrl);
 
 		const session = await stripe.checkout.sessions.create({
 			mode: "payment",
@@ -234,7 +266,7 @@ async function createStripeCheckoutSession(req, res) {
 						currency: (envConfig.STRIPE_CURRENCY || "bdt").toLowerCase(),
 						unit_amount: Math.round(parsedAmount * 100),
 						product_data: {
-							name: "Smart Bachelor Life Payment",
+							name: "Meal Khata Payment",
 						},
 					},
 					quantity: 1,
@@ -245,7 +277,7 @@ async function createStripeCheckoutSession(req, res) {
 			metadata: {
 				userId: String(req.user._id),
 				userEmail: req.user.email || "",
-				source: "smart-bachelor-life",
+				source: "meal-khata",
 			},
 		});
 
