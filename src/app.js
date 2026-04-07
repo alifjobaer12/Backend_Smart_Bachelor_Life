@@ -36,25 +36,56 @@ const chatRouter = require("./routes/chat.route");
 // Create an Express application
 const app = express();
 
-const allowedOrigins = [
-	"http://localhost:3000",
-	"http://localhost:3001",
-	"http://localhost:5173",
-];
+function getAllowedOrigins() {
+	const defaults = [
+		"http://localhost",
+		"http://localhost:3000",
+		"http://localhost:3001",
+		"http://localhost:5173",
+		"https://localhost",
+		"capacitor://localhost",
+		"ionic://localhost",
+	];
 
-if (envConfig.CLIENT_URL) {
-	allowedOrigins.push(envConfig.CLIENT_URL);
+	const configured = String(envConfig.CLIENT_URL || "")
+		.split(",")
+		.map((origin) => origin.trim())
+		.filter(Boolean);
+
+	return [...new Set([...defaults, ...configured])];
 }
 
+const allowedOrigins = getAllowedOrigins();
+
+function isAllowedOrigin(origin) {
+	if (!origin) {
+		return true;
+	}
+
+	if (allowedOrigins.includes(origin)) {
+		return true;
+	}
+
+	return /^https?:\/\/localhost(?::\d+)?$/i.test(origin);
+}
+
+const corsOptions = {
+	origin(origin, callback) {
+		if (isAllowedOrigin(origin)) {
+			return callback(null, true);
+		}
+
+		return callback(new Error("Not allowed by CORS"));
+	},
+	methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+	credentials: true,
+	allowedHeaders: ["Content-Type", "Authorization"],
+	optionsSuccessStatus: 204,
+};
+
 // CORS configuration & middleware
-app.use(
-	cors({
-		origin: allowedOrigins,
-		methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-		credentials: true,
-		allowedHeaders: ["Content-Type", "Authorization"],
-	}),
-);
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(httpLoggerMiddleware);
 app.use(express.json());
 
