@@ -9,7 +9,7 @@ const sendEmail = async (to, subject, text, html) => {
 		const msg = {
 			from: {
 				name: "SBL",
-				email: envConfig.EMAIL_USER
+				email: envConfig.EMAIL_USER,
 			},
 			to,
 			subject,
@@ -20,15 +20,16 @@ const sendEmail = async (to, subject, text, html) => {
 		await sgMail.send(msg);
 		logger.info(`Message sent successfully to ${to}`);
 	} catch (error) {
-		if (error.response && error.response.body) {
-			console.error("SendGrid Detailed Error:", JSON.stringify(error.response.body, null, 2));
-		}
+		const sendgridResponse = error?.response?.body;
 
 		logger.error("Failed to send email:", {
 			to,
 			subject,
+			sendgridResponse,
 			error: getErrorMeta(error),
 		});
+
+		throw error;
 	}
 };
 

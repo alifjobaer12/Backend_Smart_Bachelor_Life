@@ -5,6 +5,7 @@ const expenseController = require("../controllers/expenses.controller");
 const authMiddleware = require("../middlewares/auth.middleware");
 const casheMiddleware = require("../middlewares/cache.middleware");
 const upload = require("../middlewares/fileUpload.middleware");
+const { authSensitiveLimiter } = require("../middlewares/security.middleware");
 
 const expenseRouter = express.Router();
 
@@ -16,6 +17,7 @@ const expenseRouter = express.Router();
  */
 expenseRouter.post(
 	"/",
+	authSensitiveLimiter,
 	authMiddleware.authManagerMiddleware,
 	casheMiddleware.invalidateCache(["expenses"]),
 	upload.uploadSingleFile("file"),

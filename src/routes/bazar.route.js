@@ -13,6 +13,7 @@ const {
 } = require("../middlewares/auth.middleware");
 const cacheMiddleware = require("../middlewares/cache.middleware");
 const upload = require("../middlewares/fileUpload.middleware");
+const { authSensitiveLimiter } = require("../middlewares/security.middleware");
 
 const bazarRouter = express.Router();
 
@@ -25,6 +26,7 @@ const bazarRouter = express.Router();
  */
 bazarRouter.post(
 	"/",
+	authSensitiveLimiter,
 	authManagerMiddleware,
 	cacheMiddleware.invalidateCache(["bazar"]),
 	upload.uploadSingleFile("file"),
@@ -52,6 +54,7 @@ bazarRouter.get(
  */
 bazarRouter.patch(
 	"/:id",
+	authSensitiveLimiter,
 	authManagerMiddleware,
 	cacheMiddleware.invalidateCache(["bazar"]),
 	updateBazar,
@@ -65,6 +68,7 @@ bazarRouter.patch(
  */
 bazarRouter.delete(
 	"/:id",
+	authSensitiveLimiter,
 	authManagerMiddleware,
 	cacheMiddleware.invalidateCache(["bazar"]),
 	deleteBazar,

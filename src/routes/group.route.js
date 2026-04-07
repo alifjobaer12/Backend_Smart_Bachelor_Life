@@ -2,6 +2,7 @@ const express = require("express");
 
 const authMiddleware = require("../middlewares/auth.middleware");
 const cacheMiddleware = require("../middlewares/cache.middleware");
+const { authSensitiveLimiter } = require("../middlewares/security.middleware");
 
 const groupController = require("../controllers/group.controller");
 
@@ -14,6 +15,7 @@ const groupRouter = express.Router();
  */
 groupRouter.post(
 	"/",
+	authSensitiveLimiter,
 	authMiddleware.authManagerMiddleware,
 	cacheMiddleware.invalidateCache(["group", "expenses", "payment"]),
 	groupController.createGroup,
@@ -26,6 +28,7 @@ groupRouter.post(
  */
 groupRouter.post(
 	"/send-join-code",
+	authSensitiveLimiter,
 	authMiddleware.authManagerMiddleware,
 	cacheMiddleware.invalidateCache(["group"]),
 	groupController.sendJoinCode,
@@ -38,6 +41,7 @@ groupRouter.post(
  */
 groupRouter.post(
 	"/join",
+	authSensitiveLimiter,
 	authMiddleware.authUserMiddleware,
 	cacheMiddleware.invalidateCache(["group", "expenses", "payment"]),
 	groupController.joinByJoinCode,
@@ -50,6 +54,7 @@ groupRouter.post(
  */
 groupRouter.post(
 	"/remove-user",
+	authSensitiveLimiter,
 	authMiddleware.authManagerMiddleware,
 	cacheMiddleware.invalidateCache(["group", "expenses", "payment"]),
 	groupController.removeUserFromGroup,
@@ -62,6 +67,7 @@ groupRouter.post(
  */
 groupRouter.post(
 	"/revoke-invite",
+	authSensitiveLimiter,
 	authMiddleware.authManagerMiddleware,
 	groupController.revokeInvite,
 );
@@ -97,6 +103,7 @@ groupRouter.get(
  */
 groupRouter.patch(
 	"/title",
+	authSensitiveLimiter,
 	authMiddleware.authManagerMiddleware,
 	groupController.updateGroupTitle,
 );
@@ -108,6 +115,7 @@ groupRouter.patch(
  */
 groupRouter.patch(
 	"/notice",
+	authSensitiveLimiter,
 	authMiddleware.authManagerMiddleware,
 	cacheMiddleware.invalidateCache(["group"]),
 	groupController.updateGroupPaymentNotice,
@@ -120,6 +128,7 @@ groupRouter.patch(
  */
 groupRouter.post(
 	"/leave",
+	authSensitiveLimiter,
 	authMiddleware.authUserMiddleware,
 	groupController.leaveGroup,
 );
@@ -131,6 +140,7 @@ groupRouter.post(
  */
 groupRouter.post(
 	"/change-role",
+	authSensitiveLimiter,
 	authMiddleware.authManagerMiddleware,
 	cacheMiddleware.invalidateCache(["group", "expenses", "payment"]),
 	groupController.chengeUserRole,

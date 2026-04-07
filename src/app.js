@@ -7,6 +7,10 @@ const {
 	swaggerSpec,
 	swaggerUiOptions,
 } = require("./config/swagger.config");
+const {
+	securityHeadersMiddleware,
+	globalApiLimiter,
+} = require("./middlewares/security.middleware");
 
 /**
  * 	Routes Requires
@@ -36,56 +40,38 @@ const chatRouter = require("./routes/chat.route");
 // Create an Express application
 const app = express();
 
-function getAllowedOrigins() {
-	const defaults = [
-		"http://localhost",
-		"http://localhost:3000",
-		"http://localhost:3001",
-		"http://localhost:5173",
-		"https://localhost",
-		"capacitor://localhost",
-		"ionic://localhost",
-	];
+// Required for correct client IP resolution behind Render/other proxies.
+app.set("trust proxy", 1);
 
-	const configured = String(envConfig.CLIENT_URL || "")
-		.split(",")
-		.map((origin) => origin.trim())
-		.filter(Boolean);
-
-	return [...new Set([...defaults, ...configured])];
+function normalizeOrigin(origin) {
+	return String(origin || "")
+		.trim()
+		.replace(/\/+$/, "");
 }
 
-const allowedOrigins = getAllowedOrigins();
+const allowedOrigins = [
+	"http://localhost:3000",
+	"http://localhost:3001",
+	"http://localhost:5173",
+].map(normalizeOrigin);
 
-function isAllowedOrigin(origin) {
-	if (!origin) {
-		return true;
-	}
-
-	if (allowedOrigins.includes(origin)) {
-		return true;
-	}
-
-	return /^https?:\/\/localhost(?::\d+)?$/i.test(origin);
+if (envConfig.CLIENT_URL) {
+	allowedOrigins.push(normalizeOrigin(envConfig.CLIENT_URL));
 }
 
-const corsOptions = {
-	origin(origin, callback) {
-		if (isAllowedOrigin(origin)) {
-			return callback(null, true);
-		}
-
-		return callback(new Error("Not allowed by CORS"));
-	},
-	methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-	credentials: true,
-	allowedHeaders: ["Content-Type", "Authorization"],
-	optionsSuccessStatus: 204,
-};
+const uniqueAllowedOrigins = [...new Set(allowedOrigins)];
 
 // CORS configuration & middleware
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
+app.use(
+	cors({
+		origin: uniqueAllowedOrigins,
+		methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+		credentials: true,
+		allowedHeaders: ["Content-Type", "Authorization"],
+	}),
+);
+app.use(securityHeadersMiddleware);
+app.use(globalApiLimiter);
 app.use(httpLoggerMiddleware);
 app.use(express.json());
 
