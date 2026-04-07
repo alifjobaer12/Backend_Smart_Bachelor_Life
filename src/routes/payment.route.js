@@ -4,6 +4,7 @@ const paymentController = require("../controllers/payment.controller");
 
 const authMiddleware = require("../middlewares/auth.middleware");
 const cacheMiddleware = require("../middlewares/cache.middleware");
+const { authSensitiveLimiter } = require("../middlewares/security.middleware");
 
 const paymentRouter = express.Router();
 
@@ -14,6 +15,7 @@ const paymentRouter = express.Router();
  */
 paymentRouter.post(
 	"/",
+	authSensitiveLimiter,
 	authMiddleware.authUserMiddleware,
 	cacheMiddleware.invalidateCache(["payment"]),
 	paymentController.createPayment,
@@ -26,6 +28,7 @@ paymentRouter.post(
  */
 paymentRouter.post(
 	"/stripe/checkout-session",
+	authSensitiveLimiter,
 	authMiddleware.authUserMiddleware,
 	paymentController.createStripeCheckoutSession,
 );
@@ -37,6 +40,7 @@ paymentRouter.post(
  */
 paymentRouter.post(
 	"/stripe/confirm-session",
+	authSensitiveLimiter,
 	authMiddleware.authUserMiddleware,
 	cacheMiddleware.invalidateCache(["payment"]),
 	paymentController.confirmStripeCheckoutSession,
@@ -49,6 +53,7 @@ paymentRouter.post(
  */
 paymentRouter.post(
 	"/confirm/:paymentID",
+	authSensitiveLimiter,
 	authMiddleware.authManagerMiddleware,
 	cacheMiddleware.invalidateCache(["payment"]),
 	paymentController.confirmPayment,
@@ -61,6 +66,7 @@ paymentRouter.post(
  */
 paymentRouter.post(
 	"/reject/:paymentID",
+	authSensitiveLimiter,
 	authMiddleware.authManagerMiddleware,
 	cacheMiddleware.invalidateCache(["payment"]),
 	paymentController.rejectPayment,

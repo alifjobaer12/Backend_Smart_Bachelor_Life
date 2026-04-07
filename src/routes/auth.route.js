@@ -3,6 +3,7 @@ const express = require("express");
 const authController = require("../controllers/auth.controller");
 
 const authMiddleware = require("../middlewares/auth.middleware");
+const { authSensitiveLimiter } = require("../middlewares/security.middleware");
 
 const authRouter = express.Router();
 
@@ -11,7 +12,11 @@ const authRouter = express.Router();
  * - user registration
  * - open to public
  */
-authRouter.post("/register", authController.userRegisterController);
+authRouter.post(
+	"/register",
+	authSensitiveLimiter,
+	authController.userRegisterController,
+);
 
 /**
  * - POST /api/auth/manager-register
@@ -20,6 +25,7 @@ authRouter.post("/register", authController.userRegisterController);
  */
 authRouter.post(
 	"/manager-register",
+	authSensitiveLimiter,
 	authMiddleware.authUserMiddleware,
 	authController.managerRegisterController,
 );
@@ -31,6 +37,7 @@ authRouter.post(
  */
 authRouter.post(
 	"/login",
+	authSensitiveLimiter,
 	authMiddleware.authUserMiddleware,
 	authController.userLoginController,
 );
@@ -43,6 +50,7 @@ authRouter.post(
  */
 authRouter.post(
 	"/logout",
+	authSensitiveLimiter,
 	authMiddleware.authUserMiddleware,
 	authController.userLogoutController,
 );

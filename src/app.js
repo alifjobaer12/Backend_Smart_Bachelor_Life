@@ -7,6 +7,10 @@ const {
 	swaggerSpec,
 	swaggerUiOptions,
 } = require("./config/swagger.config");
+const {
+	securityHeadersMiddleware,
+	globalApiLimiter,
+} = require("./middlewares/security.middleware");
 
 /**
  * 	Routes Requires
@@ -35,25 +39,38 @@ const bazarRouter = require("./routes/bazar.route");
 // Create an Express application
 const app = express();
 
+// Required for correct client IP resolution behind Render/other proxies.
+app.set("trust proxy", 1);
+
+function normalizeOrigin(origin) {
+	return String(origin || "")
+		.trim()
+		.replace(/\/+$/, "");
+}
+
 const allowedOrigins = [
 	"http://localhost:3000",
 	"http://localhost:3001",
 	"http://localhost:5173",
-];
+].map(normalizeOrigin);
 
 if (envConfig.CLIENT_URL) {
-	allowedOrigins.push(envConfig.CLIENT_URL);
+	allowedOrigins.push(normalizeOrigin(envConfig.CLIENT_URL));
 }
+
+const uniqueAllowedOrigins = [...new Set(allowedOrigins)];
 
 // CORS configuration & middleware
 app.use(
 	cors({
-		origin: allowedOrigins,
+		origin: uniqueAllowedOrigins,
 		methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
 		credentials: true,
 		allowedHeaders: ["Content-Type", "Authorization"],
 	}),
 );
+app.use(securityHeadersMiddleware);
+app.use(globalApiLimiter);
 app.use(httpLoggerMiddleware);
 app.use(express.json());
 
