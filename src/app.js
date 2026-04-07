@@ -35,6 +35,7 @@ const paymentRouter = require("./routes/payment.route");
 const mealRouter = require("./routes/meal.route");
 const menuRouter = require("./routes/menu.route");
 const bazarRouter = require("./routes/bazar.route");
+const chatRouter = require("./routes/chat.route");
 
 // Create an Express application
 const app = express();
@@ -119,5 +120,6 @@ app.use("/api/payment", paymentRouter);
 app.use("/api/meals", mealRouter);
 app.use("/api/menus", menuRouter);
 app.use("/api/bazar", bazarRouter);
+app.use("/api/chat", chatRouter);
 
 module.exports = app;
