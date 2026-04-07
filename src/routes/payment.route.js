@@ -51,7 +51,7 @@ paymentRouter.post(
  * - PATCH /api/payment/confirm/:paymentID
  * - requires user authentication
  */
-paymentRouter.post(
+paymentRouter.patch(
 	"/confirm/:paymentID",
 	authSensitiveLimiter,
 	authMiddleware.authManagerMiddleware,

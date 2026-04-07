@@ -1,5 +1,6 @@
 const userModel = require("../models/user.model");
 const groupModel = require("../models/group.model");
+const firebaseAdmin = require("../config/firebase.config");
 
 const emailService = require("../services/email.service");
 
@@ -10,28 +11,43 @@ const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 /**
  * - user registration controller
  * - POST /api/auth/register
- * - open to public
+ * - requires a valid Firebase ID token
  */
 async function userRegisterController(req, res) {
 	const logCtx = getLogContext(req);
-	const { firebaseUid, email, displayName, photoURL, provider, lastLoginAt } =
-		req.body;
+	const authHeader = req.headers.authorization;
+	const token = authHeader?.startsWith("Bearer ")
+		? authHeader.split(" ")[1]
+		: null;
+	const { displayName, photoURL, provider } = req.body;
 
 	logger.info("Auth register attempt", {
 		...logCtx,
-		firebaseUid,
-		email,
+		hasAuthHeader: !!authHeader,
 		provider,
 	});
 
-	if (!firebaseUid || !email) {
+	if (!token) {
 		return res.status(400).json({
 			success: false,
-			message: "firebaseUid and email are required",
+			message: "Authorization token is required",
 		});
 	}
 
 	try {
+		const decoded = await firebaseAdmin.auth().verifyIdToken(token);
+		console.log("Decoded Firebase token:", decoded); // Debug log for token contents
+		const firebaseUid = decoded.uid;
+		const email = decoded.email;
+		const lastLoginAt = new Date();
+
+		if (!firebaseUid || !email) {
+			return res.status(400).json({
+				success: false,
+				message: "Firebase token must include uid and email",
+			});
+		}
+
 		const isExistingUser = await userModel.findOne({
 			$or: [{ firebaseUid }, { email }],
 		});
@@ -85,8 +101,6 @@ async function userRegisterController(req, res) {
 	} catch (error) {
 		logger.error("Auth register failed", {
 			...logCtx,
-			email,
-			firebaseUid,
 			error: getErrorMeta(error),
 		});
 

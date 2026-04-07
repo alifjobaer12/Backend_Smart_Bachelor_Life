@@ -26,7 +26,9 @@ function getSafeClientBaseUrl(redirectBaseUrl) {
 		const parsed = new URL(redirectBaseUrl);
 		const normalizedOrigin = parsed.origin;
 		const isConfigured = configuredClientOrigins.includes(normalizedOrigin);
-		const isLocalhost = /^https?:\/\/localhost(?::\d+)?$/i.test(normalizedOrigin);
+		const isLocalhost = /^https?:\/\/localhost(?::\d+)?$/i.test(
+			normalizedOrigin,
+		);
 
 		if (isConfigured || isLocalhost) {
 			return normalizedOrigin;
@@ -263,7 +265,9 @@ async function createStripeCheckoutSession(req, res) {
 			line_items: [
 				{
 					price_data: {
-						currency: (envConfig.STRIPE_CURRENCY || "bdt").toLowerCase(),
+						currency: (
+							envConfig.STRIPE_CURRENCY || "bdt"
+						).toLowerCase(),
 						unit_amount: Math.round(parsedAmount * 100),
 						product_data: {
 							name: "Meal Khata Payment",
