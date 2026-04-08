@@ -122,4 +122,27 @@ app.use("/api/menus", menuRouter);
 app.use("/api/bazar", bazarRouter);
 app.use("/api/chat", chatRouter);
 
+// 404 handler for unmatched routes
+app.use((req, res) => {
+	res.status(404).json({
+		success: false,
+		message: "Route not found",
+	});
+});
+
+// Global error handler
+app.use((error, req, res, next) => {
+	if (res.headersSent) {
+		return next(error);
+	}
+
+	return res.status(500).json({
+		success: false,
+		message:
+			envConfig.NODE_ENV === "development"
+				? error.message
+				: "An unexpected server error occurred",
+	});
+});
+
 module.exports = app;
