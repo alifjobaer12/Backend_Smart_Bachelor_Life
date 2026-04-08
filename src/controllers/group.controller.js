@@ -7,6 +7,12 @@ const joinCodeGenerator = require("../utils/joinCodeGenerator.util");
 const emailService = require("../services/email.service");
 const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 
+function createHttpError(status, message) {
+	const error = new Error(message);
+	error.status = status;
+	return error;
+}
+
 async function unlockRoleChoiceIfNoGroup(userId, session) {
 	const existingGroup = await groupModel
 		.findOne({
@@ -15,11 +21,15 @@ async function unlockRoleChoiceIfNoGroup(userId, session) {
 		.session(session || null);
 
 	if (!existingGroup) {
-		await userModel.findByIdAndUpdate(userId, {
-			role: "USER",
-			canBePromoted: true,
-			roleSelectionCompleted: false,
-		});
+		await userModel.findByIdAndUpdate(
+			userId,
+			{
+				role: "USER",
+				canBePromoted: true,
+				roleSelectionCompleted: false,
+			},
+			session ? { session } : {},
+		);
 	}
 }
 
@@ -376,6 +386,8 @@ async function joinByJoinCode(req, res) {
 async function removeUserFromGroup(req, res) {
 	const logCtx = getLogContext(req);
 	const { email } = req.body;
+	let responseGroup = null;
+	let removedUserInfo = null;
 
 	logger.info("Remove user from group attempt", {
 		...logCtx,
@@ -413,7 +425,8 @@ async function removeUserFromGroup(req, res) {
 					},
 				);
 
-				throw new Error(
+				throw createHttpError(
+					403,
 					"Only group managers can remove users from the group",
 				);
 			}
@@ -426,11 +439,15 @@ async function removeUserFromGroup(req, res) {
 					email,
 				});
 
-				throw new Error("User with the provided email not found");
+				throw createHttpError(
+					404,
+					"User with the provided email not found",
+				);
 			}
 
 			if (String(group.managerID) === String(user._id)) {
-				throw new Error(
+				throw createHttpError(
+					400,
 					"Manager cannot be removed from the group using this endpoint",
 				);
 			}
@@ -440,36 +457,49 @@ async function removeUserFromGroup(req, res) {
 			await group.save({ session });
 			await unlockRoleChoiceIfNoGroup(user._id, session);
 
-			logger.debug("Remove user from group: sending removal email", {
-				...logCtx,
-				groupId: group._id,
-				userEmail: email,
-			});
-
-			emailService
-				.sendUserRemovalEmail(email, user.displayName, group.title)
-				.catch((error) => {
-					logger.error(
-						"Remove user from group: removal email send failed",
-						{
-							...logCtx,
-							email,
-							error: getErrorMeta(error),
-						},
-					);
-				});
+			responseGroup = group;
+			removedUserInfo = {
+				email: user.email,
+				displayName: user.displayName,
+				groupTitle: group.title,
+			};
 
 			logger.info("Remove user from group success", {
 				...logCtx,
 				groupId: group._id,
 				userEmail: email,
 			});
+		});
 
-			return res.status(200).json({
-				success: true,
-				message: "User removed from the group successfully",
-				group,
+		if (removedUserInfo) {
+			logger.debug("Remove user from group: sending removal email", {
+				...logCtx,
+				groupId: responseGroup?._id,
+				userEmail: removedUserInfo.email,
 			});
+
+			emailService
+				.sendUserRemovalEmail(
+					removedUserInfo.email,
+					removedUserInfo.displayName,
+					removedUserInfo.groupTitle,
+				)
+				.catch((error) => {
+					logger.error(
+						"Remove user from group: removal email send failed",
+						{
+							...logCtx,
+							email: removedUserInfo.email,
+							error: getErrorMeta(error),
+						},
+					);
+				});
+		}
+
+		return res.status(200).json({
+			success: true,
+			message: "User removed from the group successfully",
+			group: responseGroup,
 		});
 	} catch (error) {
 		logger.error("Remove user from group failed", {
@@ -478,17 +508,22 @@ async function removeUserFromGroup(req, res) {
 			error: getErrorMeta(error),
 		});
 
-		return res.status(500).json({
+		const status = Number.isInteger(error?.status) ? error.status : 500;
+		let message =
+			"An error occurred while removing the user from the group";
+
+		if (status === 404) {
+			message = "User with the provided email not found";
+		} else if (status === 403) {
+			message = "Only group managers can remove users from the group";
+		} else if (status === 400) {
+			message =
+				"Manager cannot be removed from the group using this endpoint";
+		}
+
+		return res.status(status).json({
 			success: false,
-			message: String(error?.message || "").includes("not found")
-				? "User with the provided email not found"
-				: String(error?.message || "").includes("group manager")
-					? "Only group managers can remove users from the group"
-					: String(error?.message || "").includes(
-								"Manager cannot be removed",
-						  )
-						? "Manager cannot be removed from the group using this endpoint"
-						: "An error occurred while removing the user from the group",
+			message,
 		});
 	} finally {
 		await session.endSession();
@@ -820,11 +855,12 @@ async function leaveGroup(req, res) {
 				.session(session);
 
 			if (!group) {
-				throw new Error("Group not found for the user");
+				throw createHttpError(404, "Group not found for the user");
 			}
 
 			if (String(group.managerID) === String(req.user._id)) {
-				throw new Error(
+				throw createHttpError(
+					400,
 					"Manager cannot leave the group before transferring the manager role",
 				);
 			}
@@ -841,12 +877,12 @@ async function leaveGroup(req, res) {
 				groupId: group._id,
 				userId: req.user._id,
 			});
+		});
 
-			return res.status(200).json({
-				success: true,
-				message: "Left the group successfully",
-				group: null,
-			});
+		return res.status(200).json({
+			success: true,
+			message: "Left the group successfully",
+			group: null,
 		});
 	} catch (error) {
 		logger.error("Leave group failed", {
@@ -854,15 +890,19 @@ async function leaveGroup(req, res) {
 			error: getErrorMeta(error),
 		});
 
-		return res.status(500).json({
+		const status = Number.isInteger(error?.status) ? error.status : 500;
+		let message = "An error occurred while leaving the group";
+
+		if (status === 404) {
+			message = "Group not found for the user";
+		} else if (status === 400) {
+			message =
+				"Manager cannot leave the group before transferring the manager role";
+		}
+
+		return res.status(status).json({
 			success: false,
-			message: String(error?.message || "").includes("Group not found")
-				? "Group not found for the user"
-				: String(error?.message || "").includes(
-							"transferring the manager role",
-					  )
-					? "Manager cannot leave the group before transferring the manager role"
-					: "An error occurred while leaving the group",
+			message,
 		});
 	} finally {
 		await session.endSession();
