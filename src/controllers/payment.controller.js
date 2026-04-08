@@ -472,12 +472,12 @@ async function confirmPayment(req, res) {
 			});
 		}
 
-		const isUserInGroup = await groupModel.findOne({
+		const isManagerOfPaymentGroup = await groupModel.findOne({
+			_id: payment.groupID,
 			managerID: req.user._id,
-			$or: [{ managerID: payment.userID }, { userIDs: payment.userID }],
 		});
 
-		if (!isUserInGroup) {
+		if (!isManagerOfPaymentGroup) {
 			logger.warn("Confirm payment failed: unauthorized", {
 				...logCtx,
 				paymentID,
@@ -571,12 +571,12 @@ async function rejectPayment(req, res) {
 			});
 		}
 
-		const isUserInGroup = await groupModel.findOne({
+		const isManagerOfPaymentGroup = await groupModel.findOne({
+			_id: payment.groupID,
 			managerID: req.user._id,
-			$or: [{ managerID: payment.userID }, { userIDs: payment.userID }],
 		});
 
-		if (!isUserInGroup) {
+		if (!isManagerOfPaymentGroup) {
 			logger.warn("Reject payment failed: unauthorized", {
 				...logCtx,
 				paymentID,

@@ -7,10 +7,12 @@ const joinCodeGenerator = require("../utils/joinCodeGenerator.util");
 const emailService = require("../services/email.service");
 const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 
-async function unlockRoleChoiceIfNoGroup(userId) {
-	const existingGroup = await groupModel.findOne({
-		$or: [{ managerID: userId }, { userIDs: userId }],
-	});
+async function unlockRoleChoiceIfNoGroup(userId, session) {
+	const existingGroup = await groupModel
+		.findOne({
+			$or: [{ managerID: userId }, { userIDs: userId }],
+		})
+		.session(session || null);
 
 	if (!existingGroup) {
 		await userModel.findByIdAndUpdate(userId, {
@@ -391,84 +393,83 @@ async function removeUserFromGroup(req, res) {
 		});
 	}
 
+	const session = await mongoose.startSession();
+
 	try {
-		const group = await groupModel
-			.findOne({
-				managerID: req.user._id,
-			})
-			.select("+invitedEmails");
+		await session.withTransaction(async () => {
+			const group = await groupModel
+				.findOne({
+					managerID: req.user._id,
+				})
+				.select("+invitedEmails")
+				.session(session);
 
-		if (!group) {
-			logger.warn(
-				"Remove user from group failed: user not group manager",
-				{
-					...logCtx,
-					userId: req.user._id,
-				},
-			);
-
-			return res.status(403).json({
-				success: false,
-				message: "Only group managers can remove users from the group",
-			});
-		}
-
-		const user = await userModel.findOne({ email });
-
-		if (!user) {
-			logger.warn("Remove user from group failed: user not found", {
-				...logCtx,
-				email,
-			});
-
-			return res.status(404).json({
-				success: false,
-				message: "User with the provided email not found",
-			});
-		}
-
-		if (String(group.managerID) === String(user._id)) {
-			return res.status(400).json({
-				success: false,
-				message:
-					"Manager cannot be removed from the group using this endpoint",
-			});
-		}
-
-		group.userIDs.pull(user._id);
-		group.invitedEmails.pull(user.email);
-		await group.save();
-		await unlockRoleChoiceIfNoGroup(user._id);
-
-		logger.debug("Remove user from group: sending removal email", {
-			...logCtx,
-			groupId: group._id,
-			userEmail: email,
-		});
-
-		emailService
-			.sendUserRemovalEmail(email, user.displayName, group.title)
-			.catch((error) => {
-				logger.error(
-					"Remove user from group: removal email send failed",
+			if (!group) {
+				logger.warn(
+					"Remove user from group failed: user not group manager",
 					{
 						...logCtx,
-						email,
-						error: getErrorMeta(error),
+						userId: req.user._id,
 					},
 				);
+
+				throw new Error(
+					"Only group managers can remove users from the group",
+				);
+			}
+
+			const user = await userModel.findOne({ email }).session(session);
+
+			if (!user) {
+				logger.warn("Remove user from group failed: user not found", {
+					...logCtx,
+					email,
+				});
+
+				throw new Error("User with the provided email not found");
+			}
+
+			if (String(group.managerID) === String(user._id)) {
+				throw new Error(
+					"Manager cannot be removed from the group using this endpoint",
+				);
+			}
+
+			group.userIDs.pull(user._id);
+			group.invitedEmails.pull(user.email);
+			await group.save({ session });
+			await unlockRoleChoiceIfNoGroup(user._id, session);
+
+			logger.debug("Remove user from group: sending removal email", {
+				...logCtx,
+				groupId: group._id,
+				userEmail: email,
 			});
 
-		logger.info("Remove user from group success", {
-			...logCtx,
-			groupId: group._id,
-			userEmail: email,
-		});
+			emailService
+				.sendUserRemovalEmail(email, user.displayName, group.title)
+				.catch((error) => {
+					logger.error(
+						"Remove user from group: removal email send failed",
+						{
+							...logCtx,
+							email,
+							error: getErrorMeta(error),
+						},
+					);
+				});
 
-		return res.status(200).json({
-			success: true,
-			message: "User removed from the group successfully",
-			group,
+			logger.info("Remove user from group success", {
+				...logCtx,
+				groupId: group._id,
+				userEmail: email,
+			});
+
+			return res.status(200).json({
+				success: true,
+				message: "User removed from the group successfully",
+				group,
+			});
 		});
 	} catch (error) {
 		logger.error("Remove user from group failed", {
@@ -479,8 +480,18 @@ async function removeUserFromGroup(req, res) {
 
 		return res.status(500).json({
 			success: false,
-			message: "An error occurred while removing the user from the group",
+			message: String(error?.message || "").includes("not found")
+				? "User with the provided email not found"
+				: String(error?.message || "").includes("group manager")
+					? "Only group managers can remove users from the group"
+					: String(error?.message || "").includes(
+								"Manager cannot be removed",
+						  )
+						? "Manager cannot be removed from the group using this endpoint"
+						: "An error occurred while removing the user from the group",
 		});
+	} finally {
+		await session.endSession();
 	}
 }
 
@@ -794,45 +805,48 @@ async function leaveGroup(req, res) {
 		email: req.user.email,
 	});
 
+	const session = await mongoose.startSession();
+
 	try {
-		const group = await groupModel
-			.findOne({
-				$or: [{ managerID: req.user._id }, { userIDs: req.user._id }],
-			})
-			.select("+invitedEmails");
+		await session.withTransaction(async () => {
+			const group = await groupModel
+				.findOne({
+					$or: [
+						{ managerID: req.user._id },
+						{ userIDs: req.user._id },
+					],
+				})
+				.select("+invitedEmails")
+				.session(session);
 
-		if (!group) {
-			return res.status(404).json({
-				success: false,
-				message: "Group not found for the user",
-			});
-		}
+			if (!group) {
+				throw new Error("Group not found for the user");
+			}
 
-		if (String(group.managerID) === String(req.user._id)) {
-			return res.status(400).json({
-				success: false,
-				message:
+			if (String(group.managerID) === String(req.user._id)) {
+				throw new Error(
 					"Manager cannot leave the group before transferring the manager role",
+				);
+			}
+
+			group.userIDs.pull(req.user._id);
+			if (group.invitedEmails?.pull) {
+				group.invitedEmails.pull(req.user.email);
+			}
+			await group.save({ session });
+			await unlockRoleChoiceIfNoGroup(req.user._id, session);
+
+			logger.info("Leave group success", {
+				...logCtx,
+				groupId: group._id,
+				userId: req.user._id,
 			});
-		}
 
-		group.userIDs.pull(req.user._id);
-		if (group.invitedEmails?.pull) {
-			group.invitedEmails.pull(req.user.email);
-		}
-		await group.save();
-		await unlockRoleChoiceIfNoGroup(req.user._id);
-
-		logger.info("Leave group success", {
-			...logCtx,
-			groupId: group._id,
-			userId: req.user._id,
-		});
-
-		return res.status(200).json({
-			success: true,
-			message: "Left the group successfully",
-			group: null,
+			return res.status(200).json({
+				success: true,
+				message: "Left the group successfully",
+				group: null,
+			});
 		});
 	} catch (error) {
 		logger.error("Leave group failed", {
@@ -842,8 +856,16 @@ async function leaveGroup(req, res) {
 
 		return res.status(500).json({
 			success: false,
-			message: "An error occurred while leaving the group",
+			message: String(error?.message || "").includes("Group not found")
+				? "Group not found for the user"
+				: String(error?.message || "").includes(
+							"transferring the manager role",
+					  )
+					? "Manager cannot leave the group before transferring the manager role"
+					: "An error occurred while leaving the group",
 		});
+	} finally {
+		await session.endSession();
 	}
 }
 
