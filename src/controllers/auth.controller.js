@@ -66,11 +66,9 @@ async function userRegisterController(req, res) {
 			});
 		}
 
-		// Allow self-promotion to MANAGER role during registration, but only once
-		const roleRequest = String(req.body.roleRequest || "").trim().toUpperCase();
-		const isValidRoleRequest = ["MANAGER", "USER"].includes(roleRequest);
-		const initialRole = isValidRoleRequest ? roleRequest : "USER";
-		const canBePromoted = initialRole !== "MANAGER"; // Lock promotion after assignment
+		// Registration always creates a USER account first.
+		// The frontend can then let the user choose exactly one next step:
+		// self-promote to manager or join by group code.
 
 		const newUser = await userModel.create({
 			firebaseUid,
@@ -79,9 +77,6 @@ async function userRegisterController(req, res) {
 			photoURL,
 			provider,
 			lastLoginAt,
-			role: initialRole,
-			canBePromoted,
-			roleSelectionCompleted: isValidRoleRequest,
 		});
 
 		logger.info("Auth register success", {
@@ -120,22 +115,67 @@ async function userRegisterController(req, res) {
 }
 
 /**
- * - manager registration controller (DEPRECATED - manager promotion is only allowed during registration)
+ * - manager self-promotion controller
  * - POST /api/auth/register-manager
- * - This endpoint is disabled; manager role must be selected during initial user registration only
+ * - one-time action after registration, requires authenticated user
  */
 async function managerRegisterController(req, res) {
 	const logCtx = getLogContext(req);
+	const userId = req.user?._id;
 
-	logger.warn("Manager promotion attempt via deprecated endpoint", {
+	logger.info("Manager self-promotion attempt", {
 		...logCtx,
-		email: req.body?.email,
+		userId,
 	});
 
-	return res.status(403).json({
-		success: false,
-		message: "Manager role can only be assigned during user registration. This endpoint is disabled.",
-	});
+	try {
+		const user = await userModel
+			.findById(userId)
+			.select("+role +roleSelectionCompleted +canBePromoted");
+
+		if (!user) {
+			return res.status(404).json({
+				success: false,
+				message: "User not found",
+			});
+		}
+
+		if (!user.canBePromoted || user.roleSelectionCompleted) {
+			return res.status(403).json({
+				success: false,
+				message:
+					"Role choice is already completed. You can only choose manager once after registration.",
+			});
+		}
+
+		user.role = "MANAGER";
+		user.canBePromoted = false;
+		user.roleSelectionCompleted = true;
+		await user.save();
+
+		logger.info("Manager self-promotion success", {
+			...logCtx,
+			userId: user._id,
+			email: user.email,
+		});
+
+		return res.status(200).json({
+			success: true,
+			message: "User promoted to manager successfully",
+			user,
+		});
+	} catch (error) {
+		logger.error("Manager self-promotion failed", {
+			...logCtx,
+			userId,
+			error: getErrorMeta(error),
+		});
+
+		return res.status(500).json({
+			success: false,
+			message: "An error occurred while promoting the user to manager",
+		});
+	}
 }
 
 /**
@@ -165,7 +205,7 @@ async function userLoginController(req, res) {
 			.findOne({
 				$or: [{ firebaseUid: uid }, { email }],
 			})
-			.select("+role +roleSelectionCompleted");
+			.select("+role +roleSelectionCompleted +canBePromoted");
 
 		if (!user) {
 			logger.warn("Auth login rejected: user not found", {
@@ -191,14 +231,14 @@ async function userLoginController(req, res) {
 
 		const currentGroup = group
 			? {
-				id: group._id,
-				title: group.title,
-				address: group.address,
-				joinCode: group.joinCode,
-				paymentNotice: group.paymentNotice || "",
-				memberCount: (group.userIDs?.length || 0) + 1,
-				manager: group.managerID,
-			}
+					id: group._id,
+					title: group.title,
+					address: group.address,
+					joinCode: group.joinCode,
+					paymentNotice: group.paymentNotice || "",
+					memberCount: (group.userIDs?.length || 0) + 1,
+					manager: group.managerID,
+				}
 			: null;
 
 		logger.info("Auth login success", {

@@ -7,6 +7,20 @@ const joinCodeGenerator = require("../utils/joinCodeGenerator.util");
 const emailService = require("../services/email.service");
 const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 
+async function unlockRoleChoiceIfNoGroup(userId) {
+	const existingGroup = await groupModel.findOne({
+		$or: [{ managerID: userId }, { userIDs: userId }],
+	});
+
+	if (!existingGroup) {
+		await userModel.findByIdAndUpdate(userId, {
+			role: "USER",
+			canBePromoted: true,
+			roleSelectionCompleted: false,
+		});
+	}
+}
+
 /**
  * Create a new group
  * POST /api/groups
@@ -123,7 +137,9 @@ async function sendJoinCode(req, res) {
 		const emailRegex = /^\S+@\S+\.\S+$/;
 
 		for (const rawEmail of userList) {
-			const email = String(rawEmail || "").trim().toLowerCase();
+			const email = String(rawEmail || "")
+				.trim()
+				.toLowerCase();
 
 			if (!emailRegex.test(email)) {
 				invalidEmails.push(email || String(rawEmail || ""));
@@ -135,9 +151,9 @@ async function sendJoinCode(req, res) {
 			}
 
 			try {
-				const user = await userModel.findOne({ email }).select(
-					"displayName",
-				);
+				const user = await userModel
+					.findOne({ email })
+					.select("displayName");
 				const receiverName = user?.displayName || "there";
 
 				await emailService.sendJoinCodeEmail(
@@ -245,6 +261,23 @@ async function joinByJoinCode(req, res) {
 	}
 
 	try {
+		if (!req.user.canBePromoted) {
+			logger.warn(
+				"Join group by code failed: role choice already completed",
+				{
+					...logCtx,
+					userId,
+					userRole: req.user.role,
+				},
+			);
+
+			return res.status(403).json({
+				success: false,
+				message:
+					"You have already completed your one-time role choice after registration.",
+			});
+		}
+
 		// Check if user is already a member of any group
 		const userExistsInAnyGroup = await groupModel.findOne({
 			userIDs: userId,
@@ -306,6 +339,7 @@ async function joinByJoinCode(req, res) {
 		await userModel.findByIdAndUpdate(userId, {
 			role: "USER",
 			roleSelectionCompleted: true,
+			canBePromoted: false,
 		});
 
 		logger.info("Join group by code success", {
@@ -393,9 +427,18 @@ async function removeUserFromGroup(req, res) {
 			});
 		}
 
+		if (String(group.managerID) === String(user._id)) {
+			return res.status(400).json({
+				success: false,
+				message:
+					"Manager cannot be removed from the group using this endpoint",
+			});
+		}
+
 		group.userIDs.pull(user._id);
 		group.invitedEmails.pull(user.email);
 		await group.save();
+		await unlockRoleChoiceIfNoGroup(user._id);
 
 		logger.debug("Remove user from group: sending removal email", {
 			...logCtx,
@@ -778,10 +821,7 @@ async function leaveGroup(req, res) {
 			group.invitedEmails.pull(req.user.email);
 		}
 		await group.save();
-
-		await userModel.findByIdAndUpdate(req.user._id, {
-			roleSelectionCompleted: false,
-		});
+		await unlockRoleChoiceIfNoGroup(req.user._id);
 
 		logger.info("Leave group success", {
 			...logCtx,
@@ -910,9 +950,13 @@ async function chengeUserRole(req, res) {
 
 			// 🔁 Role switch
 			user.role = "MANAGER";
+			user.roleSelectionCompleted = true;
+			user.canBePromoted = false;
 			await user.save({ session });
 
 			oldManager.role = "USER";
+			oldManager.roleSelectionCompleted = true;
+			oldManager.canBePromoted = false;
 			await oldManager.save({ session });
 
 			// 🔁 Update group

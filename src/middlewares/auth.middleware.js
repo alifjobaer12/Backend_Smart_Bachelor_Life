@@ -52,9 +52,11 @@ async function authUserMiddleware(req, res, next) {
 
 		const decoded = await firebaseAdmin.auth().verifyIdToken(token);
 
-		const user = await userModel.findOne({
-			$or: [{ firebaseUid: decoded.uid }, { email: decoded.email }],
-		});
+		const user = await userModel
+			.findOne({
+				$or: [{ firebaseUid: decoded.uid }, { email: decoded.email }],
+			})
+			.select("+role +roleSelectionCompleted +canBePromoted");
 
 		if (!user) {
 			logger.warn("Auth user middleware failed: user not found", {
@@ -137,10 +139,12 @@ async function authManagerMiddleware(req, res, next) {
 
 		const decoded = await firebaseAdmin.auth().verifyIdToken(token);
 
-		const isManager = await userModel.findOne({
-			$or: [{ firebaseUid: decoded.uid }, { email: decoded.email }],
-			role: "MANAGER",
-		});
+		const isManager = await userModel
+			.findOne({
+				$or: [{ firebaseUid: decoded.uid }, { email: decoded.email }],
+				role: "MANAGER",
+			})
+			.select("+role +roleSelectionCompleted +canBePromoted");
 
 		if (!isManager) {
 			logger.warn("Auth manager middleware failed: not a manager", {

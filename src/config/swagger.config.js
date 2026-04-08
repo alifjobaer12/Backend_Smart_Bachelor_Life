@@ -651,18 +651,10 @@ const options = {
 			"/api/auth/manager-register": {
 				post: {
 					tags: ["Auth"],
-					summary: "Promote existing user to manager",
+					summary: "Self-promote to manager once after registration",
+					description:
+						"Allows the authenticated user to choose manager once after registration.",
 					security: [{ bearerAuth: [] }],
-					requestBody: {
-						required: true,
-						content: {
-							"application/json": {
-								schema: {
-									$ref: "#/components/schemas/ManagerRegisterRequest",
-								},
-							},
-						},
-					},
 					responses: {
 						200: {
 							description: "User promoted to manager",
@@ -680,6 +672,16 @@ const options = {
 												$ref: "#/components/schemas/User",
 											},
 										},
+									},
+								},
+							},
+						},
+						403: {
+							description: "Role choice already completed",
+							content: {
+								"application/json": {
+									schema: {
+										$ref: "#/components/schemas/ApiError",
 									},
 								},
 							},
