@@ -9,6 +9,7 @@ const {
 } = require("../controllers/meal.controller");
 
 const { authUserMiddleware } = require("../middlewares/auth.middleware");
+const { authSensitiveLimiter } = require("../middlewares/security.middleware");
 const cacheMiddleware = require("../middlewares/cache.middleware");
 
 /**
@@ -18,6 +19,7 @@ const cacheMiddleware = require("../middlewares/cache.middleware");
  */
 router.post(
 	"/",
+	authSensitiveLimiter,
 	authUserMiddleware,
 	cacheMiddleware.invalidateCache(["meal"]),
 	createMeal,
@@ -42,6 +44,7 @@ router.get(
  */
 router.patch(
 	"/:id",
+	authSensitiveLimiter,
 	authUserMiddleware,
 	cacheMiddleware.invalidateCache(["meal"]),
 	updateMeal,
@@ -54,6 +57,7 @@ router.patch(
  */
 router.delete(
 	"/:id",
+	authSensitiveLimiter,
 	authUserMiddleware,
 	cacheMiddleware.invalidateCache(["meal"]),
 	deleteMeal,

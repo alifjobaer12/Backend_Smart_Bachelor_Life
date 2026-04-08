@@ -36,7 +36,6 @@ async function userRegisterController(req, res) {
 
 	try {
 		const decoded = await firebaseAdmin.auth().verifyIdToken(token);
-		console.log("Decoded Firebase token:", decoded); // Debug log for token contents
 		const firebaseUid = decoded.uid;
 		const email = decoded.email;
 		const lastLoginAt = new Date();
@@ -67,6 +66,12 @@ async function userRegisterController(req, res) {
 			});
 		}
 
+		// Allow self-promotion to MANAGER role during registration, but only once
+		const roleRequest = String(req.body.roleRequest || "").trim().toUpperCase();
+		const isValidRoleRequest = ["MANAGER", "USER"].includes(roleRequest);
+		const initialRole = isValidRoleRequest ? roleRequest : "USER";
+		const canBePromoted = initialRole !== "MANAGER"; // Lock promotion after assignment
+
 		const newUser = await userModel.create({
 			firebaseUid,
 			email,
@@ -74,6 +79,9 @@ async function userRegisterController(req, res) {
 			photoURL,
 			provider,
 			lastLoginAt,
+			role: initialRole,
+			canBePromoted,
+			roleSelectionCompleted: isValidRoleRequest,
 		});
 
 		logger.info("Auth register success", {
@@ -112,51 +120,22 @@ async function userRegisterController(req, res) {
 }
 
 /**
- * - manager registration controller (promote existing user to manager)
+ * - manager registration controller (DEPRECATED - manager promotion is only allowed during registration)
  * - POST /api/auth/register-manager
- * - protected route, requires valid Firebase ID token and member role
+ * - This endpoint is disabled; manager role must be selected during initial user registration only
  */
 async function managerRegisterController(req, res) {
 	const logCtx = getLogContext(req);
 
-	try {
-		const user = await userModel
-			.findOne({ email: req.body.email })
-			.select("+role +roleSelectionCompleted");
+	logger.warn("Manager promotion attempt via deprecated endpoint", {
+		...logCtx,
+		email: req.body?.email,
+	});
 
-		if (!user) {
-			return res.status(404).json({
-				success: false,
-				message: "User not found",
-			});
-		}
-
-		user.role = "MANAGER";
-		user.roleSelectionCompleted = true;
-		await user.save();
-
-		logger.info("Manager role assigned successfully", {
-			...logCtx,
-			userId: user._id,
-			email: user.email,
-		});
-
-		return res.status(200).json({
-			success: true,
-			message: "User promoted to manager successfully",
-			user,
-		});
-	} catch (error) {
-		logger.error("Error promoting user to manager", {
-			...logCtx,
-			email: req.body?.email,
-			error: getErrorMeta(error),
-		});
-		return res.status(500).json({
-			success: false,
-			message: "An error occurred while promoting the user to manager",
-		});
-	}
+	return res.status(403).json({
+		success: false,
+		message: "Manager role can only be assigned during user registration. This endpoint is disabled.",
+	});
 }
 
 /**

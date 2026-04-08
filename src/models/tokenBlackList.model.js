@@ -16,6 +16,9 @@ const tokenBlackListSchema = new mongoose.Schema(
 	},
 );
 
+// Create a unique index on the token field to prevent duplicate entries
+tokenBlackListSchema.index({ token: 1 }, { unique: true });
+
 // Create an index on the createdAt field to automatically delete expired tokens after 3 days
 tokenBlackListSchema.index(
 	{ createdAt: 1 },

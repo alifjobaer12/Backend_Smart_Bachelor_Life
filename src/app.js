@@ -73,7 +73,7 @@ app.use(
 app.use(securityHeadersMiddleware);
 app.use(globalApiLimiter);
 app.use(httpLoggerMiddleware);
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 /**
  * Basic route to check if the server is running.

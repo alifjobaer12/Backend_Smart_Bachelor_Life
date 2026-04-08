@@ -49,6 +49,11 @@ const userSchema = new mongoose.Schema(
 			select: false,
 			default: false,
 		},
+		canBePromoted: {
+			type: Boolean,
+			select: false,
+			default: true,
+		},
 		provider: {
 			type: String,
 			trim: true,

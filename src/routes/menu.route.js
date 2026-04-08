@@ -12,6 +12,7 @@ const {
 	authUserMiddleware,
 	authManagerMiddleware,
 } = require("../middlewares/auth.middleware");
+const { authSensitiveLimiter } = require("../middlewares/security.middleware");
 const cacheMiddleware = require("../middlewares/cache.middleware");
 
 /**
@@ -21,6 +22,7 @@ const cacheMiddleware = require("../middlewares/cache.middleware");
  */
 router.post(
 	"/",
+	authSensitiveLimiter,
 	authManagerMiddleware,
 	cacheMiddleware.invalidateCache(["menu"]),
 	createMenu,
@@ -45,6 +47,7 @@ router.get(
  */
 router.patch(
 	"/:id",
+	authSensitiveLimiter,
 	authManagerMiddleware,
 	cacheMiddleware.invalidateCache(["menu"]),
 	updateMenu,
@@ -57,6 +60,7 @@ router.patch(
  */
 router.delete(
 	"/:id",
+	authSensitiveLimiter,
 	authManagerMiddleware,
 	cacheMiddleware.invalidateCache(["menu"]),
 	deleteMenu,
