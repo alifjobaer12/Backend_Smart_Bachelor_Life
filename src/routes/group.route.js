@@ -143,7 +143,7 @@ groupRouter.post(
 	authSensitiveLimiter,
 	authMiddleware.authManagerMiddleware,
 	cacheMiddleware.invalidateCache(["group", "expenses", "payment"]),
-	groupController.chengeUserRole,
+	groupController.changeUserRole,
 );
 
 module.exports = groupRouter;

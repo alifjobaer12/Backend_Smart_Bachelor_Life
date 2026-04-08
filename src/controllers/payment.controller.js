@@ -228,7 +228,6 @@ async function createPayment(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to create payment",
-			error: "An unexpected error occurred",
 		});
 	}
 }
@@ -307,7 +306,6 @@ async function createStripeCheckoutSession(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to create Stripe checkout session",
-			error: "An unexpected error occurred",
 		});
 	}
 }
@@ -421,7 +419,6 @@ async function confirmStripeCheckoutSession(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to confirm Stripe checkout session",
-			error: "An unexpected error occurred",
 		});
 	}
 }
@@ -475,12 +472,12 @@ async function confirmPayment(req, res) {
 			});
 		}
 
-		const isUserInGroup = await groupModel.findOne({
+		const isManagerOfPaymentGroup = await groupModel.findOne({
+			_id: payment.groupID,
 			managerID: req.user._id,
-			$or: [{ managerID: payment.userID }, { userIDs: payment.userID }],
 		});
 
-		if (!isUserInGroup) {
+		if (!isManagerOfPaymentGroup) {
 			logger.warn("Confirm payment failed: unauthorized", {
 				...logCtx,
 				paymentID,
@@ -522,7 +519,6 @@ async function confirmPayment(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to confirm payment",
-			error: "An unexpected error occurred",
 		});
 	}
 }
@@ -575,12 +571,12 @@ async function rejectPayment(req, res) {
 			});
 		}
 
-		const isUserInGroup = await groupModel.findOne({
+		const isManagerOfPaymentGroup = await groupModel.findOne({
+			_id: payment.groupID,
 			managerID: req.user._id,
-			$or: [{ managerID: payment.userID }, { userIDs: payment.userID }],
 		});
 
-		if (!isUserInGroup) {
+		if (!isManagerOfPaymentGroup) {
 			logger.warn("Reject payment failed: unauthorized", {
 				...logCtx,
 				paymentID,
@@ -622,7 +618,6 @@ async function rejectPayment(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to reject payment",
-			error: "An unexpected error occurred",
 		});
 	}
 }
@@ -827,7 +822,6 @@ async function getPayments(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to fetch payments",
-			error: "An unexpected error occurred",
 		});
 	}
 }
@@ -875,7 +869,6 @@ async function getUserPayments(req, res) {
 		return res.status(500).json({
 			success: false,
 			message: "Failed to fetch user payments",
-			error: "An unexpected error occurred",
 		});
 	}
 }

@@ -7,6 +7,32 @@ const joinCodeGenerator = require("../utils/joinCodeGenerator.util");
 const emailService = require("../services/email.service");
 const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 
+function createHttpError(status, message) {
+	const error = new Error(message);
+	error.status = status;
+	return error;
+}
+
+async function unlockRoleChoiceIfNoGroup(userId, session) {
+	const existingGroup = await groupModel
+		.findOne({
+			$or: [{ managerID: userId }, { userIDs: userId }],
+		})
+		.session(session || null);
+
+	if (!existingGroup) {
+		await userModel.findByIdAndUpdate(
+			userId,
+			{
+				role: "USER",
+				canBePromoted: true,
+				roleSelectionCompleted: false,
+			},
+			session ? { session } : {},
+		);
+	}
+}
+
 /**
  * Create a new group
  * POST /api/groups
@@ -123,7 +149,9 @@ async function sendJoinCode(req, res) {
 		const emailRegex = /^\S+@\S+\.\S+$/;
 
 		for (const rawEmail of userList) {
-			const email = String(rawEmail || "").trim().toLowerCase();
+			const email = String(rawEmail || "")
+				.trim()
+				.toLowerCase();
 
 			if (!emailRegex.test(email)) {
 				invalidEmails.push(email || String(rawEmail || ""));
@@ -135,9 +163,9 @@ async function sendJoinCode(req, res) {
 			}
 
 			try {
-				const user = await userModel.findOne({ email }).select(
-					"displayName",
-				);
+				const user = await userModel
+					.findOne({ email })
+					.select("displayName");
 				const receiverName = user?.displayName || "there";
 
 				await emailService.sendJoinCodeEmail(
@@ -227,6 +255,7 @@ async function joinByJoinCode(req, res) {
 	const logCtx = getLogContext(req);
 	const { joinCode } = req.body;
 	const userId = req.user._id;
+	let responseGroup = null;
 
 	logger.info("Join group by code attempt", {
 		...logCtx,
@@ -244,80 +273,108 @@ async function joinByJoinCode(req, res) {
 		});
 	}
 
+	const session = await mongoose.startSession();
+
 	try {
-		// Check if user is already a member of any group
-		const userExistsInAnyGroup = await groupModel.findOne({
-			userIDs: userId,
-		});
+		await session.withTransaction(async () => {
+			if (!req.user.canBePromoted) {
+				logger.warn(
+					"Join group by code failed: role choice already completed",
+					{
+						...logCtx,
+						userId,
+						userRole: req.user.role,
+					},
+				);
 
-		if (userExistsInAnyGroup) {
-			logger.warn("Join group by code failed: user already in group", {
-				...logCtx,
-				existingGroupId: userExistsInAnyGroup._id,
-				existingGroupTitle: userExistsInAnyGroup.title,
-			});
+				throw createHttpError(
+					403,
+					"You have already completed your one-time role choice after registration.",
+				);
+			}
 
-			return res.status(400).json({
-				success: false,
-				message: `You are already a member of "${userExistsInAnyGroup.title}" group. You can only join one group.`,
-			});
-		}
+			// Check if user is already a member of any group.
+			const userExistsInAnyGroup = await groupModel
+				.findOne({
+					$or: [{ userIDs: userId }, { managerID: userId }],
+				})
+				.session(session);
 
-		// Find the group by joinCode
-		const group = await groupModel
-			.findOne({ joinCode })
-			.select("+invitedEmails");
+			if (userExistsInAnyGroup) {
+				logger.warn(
+					"Join group by code failed: user already in group",
+					{
+						...logCtx,
+						existingGroupId: userExistsInAnyGroup._id,
+						existingGroupTitle: userExistsInAnyGroup.title,
+					},
+				);
 
-		if (!group) {
-			logger.warn("Join group by code failed: invalid joinCode", {
-				...logCtx,
-			});
+				throw createHttpError(
+					400,
+					`You are already a member of "${userExistsInAnyGroup.title}" group. You can only join one group.`,
+				);
+			}
 
-			return res.status(404).json({
-				success: false,
-				message: "Invalid or expired join code",
-			});
-		}
+			// Find the group by joinCode.
+			const group = await groupModel
+				.findOne({ joinCode })
+				.select("+invitedEmails")
+				.session(session);
 
-		// Check if user was invited by the manager
-		const isUserInvited = Array.isArray(group.invitedEmails)
-			? group.invitedEmails.includes(req.user.email)
-			: false;
+			if (!group) {
+				logger.warn("Join group by code failed: invalid joinCode", {
+					...logCtx,
+				});
 
-		if (!isUserInvited) {
-			logger.warn("Join group by code failed: user not invited", {
-				...logCtx,
-				groupId: group._id,
-				userEmail: req.user.email,
-			});
+				throw createHttpError(404, "Invalid or expired join code");
+			}
 
-			return res.status(403).json({
-				success: false,
-				message:
+			// Check if user was invited by the manager.
+			const isUserInvited = Array.isArray(group.invitedEmails)
+				? group.invitedEmails.includes(req.user.email)
+				: false;
+
+			if (!isUserInvited) {
+				logger.warn("Join group by code failed: user not invited", {
+					...logCtx,
+					groupId: group._id,
+					userEmail: req.user.email,
+				});
+
+				throw createHttpError(
+					403,
 					"You were not invited to join this group by the manager",
-			});
-		}
+				);
+			}
 
-		// Add user to the group
-		group.userIDs.push(userId);
-		group.invitedEmails.pull(req.user.email);
-		await group.save();
+			group.userIDs.addToSet(userId);
+			group.invitedEmails.pull(req.user.email);
+			await group.save({ session });
 
-		await userModel.findByIdAndUpdate(userId, {
-			role: "USER",
-			roleSelectionCompleted: true,
+			await userModel.findByIdAndUpdate(
+				userId,
+				{
+					role: "USER",
+					roleSelectionCompleted: true,
+					canBePromoted: false,
+				},
+				{ session },
+			);
+
+			responseGroup = group;
 		});
 
 		logger.info("Join group by code success", {
 			...logCtx,
-			groupId: group._id,
-			groupTitle: group.title,
+			groupId: responseGroup._id,
+			groupTitle: responseGroup.title,
 		});
 
 		return res.status(200).json({
 			success: true,
-			message: `Joined group "${group.title}" successfully`,
-			group,
+			message: `Joined group "${responseGroup.title}" successfully`,
+			group: responseGroup,
 		});
 	} catch (error) {
 		logger.error("Join group by code failed", {
@@ -325,10 +382,22 @@ async function joinByJoinCode(req, res) {
 			error: getErrorMeta(error),
 		});
 
-		return res.status(500).json({
+		const status = Number.isInteger(error?.status) ? error.status : 500;
+		const message =
+			status === 400
+				? "Invalid join request"
+				: status === 403
+					? "You are not allowed to join this group"
+					: status === 404
+						? "Invalid or expired join code"
+						: "An error occurred while joining the group";
+
+		return res.status(status).json({
 			success: false,
-			message: "An error occurred while joining the group",
+			message,
 		});
+	} finally {
+		await session.endSession();
 	}
 }
 
@@ -340,6 +409,8 @@ async function joinByJoinCode(req, res) {
 async function removeUserFromGroup(req, res) {
 	const logCtx = getLogContext(req);
 	const { email } = req.body;
+	let responseGroup = null;
+	let removedUserInfo = null;
 
 	logger.info("Remove user from group attempt", {
 		...logCtx,
@@ -357,75 +428,101 @@ async function removeUserFromGroup(req, res) {
 		});
 	}
 
+	const session = await mongoose.startSession();
+
 	try {
-		const group = await groupModel
-			.findOne({
-				managerID: req.user._id,
-			})
-			.select("+invitedEmails");
+		await session.withTransaction(async () => {
+			const group = await groupModel
+				.findOne({
+					managerID: req.user._id,
+				})
+				.select("+invitedEmails")
+				.session(session);
 
-		if (!group) {
-			logger.warn(
-				"Remove user from group failed: user not group manager",
-				{
-					...logCtx,
-					userId: req.user._id,
-				},
-			);
-
-			return res.status(403).json({
-				success: false,
-				message: "Only group managers can remove users from the group",
-			});
-		}
-
-		const user = await userModel.findOne({ email });
-
-		if (!user) {
-			logger.warn("Remove user from group failed: user not found", {
-				...logCtx,
-				email,
-			});
-
-			return res.status(404).json({
-				success: false,
-				message: "User with the provided email not found",
-			});
-		}
-
-		group.userIDs.pull(user._id);
-		group.invitedEmails.pull(user.email);
-		await group.save();
-
-		logger.debug("Remove user from group: sending removal email", {
-			...logCtx,
-			groupId: group._id,
-			userEmail: email,
-		});
-
-		emailService
-			.sendUserRemovalEmail(email, user.displayName, group.title)
-			.catch((error) => {
-				logger.error(
-					"Remove user from group: removal email send failed",
+			if (!group) {
+				logger.warn(
+					"Remove user from group failed: user not group manager",
 					{
 						...logCtx,
-						email,
-						error: getErrorMeta(error),
+						userId: req.user._id,
 					},
 				);
+
+				throw createHttpError(
+					403,
+					"Only group managers can remove users from the group",
+				);
+			}
+
+			const user = await userModel.findOne({ email }).session(session);
+
+			if (!user) {
+				logger.warn("Remove user from group failed: user not found", {
+					...logCtx,
+					email,
+				});
+
+				throw createHttpError(
+					404,
+					"User with the provided email not found",
+				);
+			}
+
+			if (String(group.managerID) === String(user._id)) {
+				throw createHttpError(
+					400,
+					"Manager cannot be removed from the group using this endpoint",
+				);
+			}
+
+			group.userIDs.pull(user._id);
+			group.invitedEmails.pull(user.email);
+			await group.save({ session });
+			await unlockRoleChoiceIfNoGroup(user._id, session);
+
+			responseGroup = group;
+			removedUserInfo = {
+				email: user.email,
+				displayName: user.displayName,
+				groupTitle: group.title,
+			};
+
+			logger.info("Remove user from group success", {
+				...logCtx,
+				groupId: group._id,
+				userEmail: email,
+			});
+		});
+
+		if (removedUserInfo) {
+			logger.debug("Remove user from group: sending removal email", {
+				...logCtx,
+				groupId: responseGroup?._id,
+				userEmail: removedUserInfo.email,
 			});
 
-		logger.info("Remove user from group success", {
-			...logCtx,
-			groupId: group._id,
-			userEmail: email,
-		});
+			emailService
+				.sendUserRemovalEmail(
+					removedUserInfo.email,
+					removedUserInfo.displayName,
+					removedUserInfo.groupTitle,
+				)
+				.catch((error) => {
+					logger.error(
+						"Remove user from group: removal email send failed",
+						{
+							...logCtx,
+							email: removedUserInfo.email,
+							error: getErrorMeta(error),
+						},
+					);
+				});
+		}
 
 		return res.status(200).json({
 			success: true,
 			message: "User removed from the group successfully",
-			group,
+			group: responseGroup,
 		});
 	} catch (error) {
 		logger.error("Remove user from group failed", {
@@ -434,10 +531,25 @@ async function removeUserFromGroup(req, res) {
 			error: getErrorMeta(error),
 		});
 
-		return res.status(500).json({
+		const status = Number.isInteger(error?.status) ? error.status : 500;
+		let message =
+			"An error occurred while removing the user from the group";
+
+		if (status === 404) {
+			message = "User with the provided email not found";
+		} else if (status === 403) {
+			message = "Only group managers can remove users from the group";
+		} else if (status === 400) {
+			message =
+				"Manager cannot be removed from the group using this endpoint";
+		}
+
+		return res.status(status).json({
 			success: false,
-			message: "An error occurred while removing the user from the group",
+			message,
 		});
+	} finally {
+		await session.endSession();
 	}
 }
 
@@ -751,42 +863,43 @@ async function leaveGroup(req, res) {
 		email: req.user.email,
 	});
 
+	const session = await mongoose.startSession();
+
 	try {
-		const group = await groupModel
-			.findOne({
-				$or: [{ managerID: req.user._id }, { userIDs: req.user._id }],
-			})
-			.select("+invitedEmails");
+		await session.withTransaction(async () => {
+			const group = await groupModel
+				.findOne({
+					$or: [
+						{ managerID: req.user._id },
+						{ userIDs: req.user._id },
+					],
+				})
+				.select("+invitedEmails")
+				.session(session);
 
-		if (!group) {
-			return res.status(404).json({
-				success: false,
-				message: "Group not found for the user",
-			});
-		}
+			if (!group) {
+				throw createHttpError(404, "Group not found for the user");
+			}
 
-		if (String(group.managerID) === String(req.user._id)) {
-			return res.status(400).json({
-				success: false,
-				message:
+			if (String(group.managerID) === String(req.user._id)) {
+				throw createHttpError(
+					400,
 					"Manager cannot leave the group before transferring the manager role",
+				);
+			}
+
+			group.userIDs.pull(req.user._id);
+			if (group.invitedEmails?.pull) {
+				group.invitedEmails.pull(req.user.email);
+			}
+			await group.save({ session });
+			await unlockRoleChoiceIfNoGroup(req.user._id, session);
+
+			logger.info("Leave group success", {
+				...logCtx,
+				groupId: group._id,
+				userId: req.user._id,
 			});
-		}
-
-		group.userIDs.pull(req.user._id);
-		if (group.invitedEmails?.pull) {
-			group.invitedEmails.pull(req.user.email);
-		}
-		await group.save();
-
-		await userModel.findByIdAndUpdate(req.user._id, {
-			roleSelectionCompleted: false,
-		});
-
-		logger.info("Leave group success", {
-			...logCtx,
-			groupId: group._id,
-			userId: req.user._id,
 		});
 
 		return res.status(200).json({
@@ -800,10 +913,22 @@ async function leaveGroup(req, res) {
 			error: getErrorMeta(error),
 		});
 
-		return res.status(500).json({
+		const status = Number.isInteger(error?.status) ? error.status : 500;
+		let message = "An error occurred while leaving the group";
+
+		if (status === 404) {
+			message = "Group not found for the user";
+		} else if (status === 400) {
+			message =
+				"Manager cannot leave the group before transferring the manager role";
+		}
+
+		return res.status(status).json({
 			success: false,
-			message: "An error occurred while leaving the group",
+			message,
 		});
+	} finally {
+		await session.endSession();
 	}
 }
 
@@ -812,7 +937,7 @@ async function leaveGroup(req, res) {
  * - POST /api/groups/change-role
  * - protected route, requires valid Firebase ID token and group manager role
  */
-async function chengeUserRole(req, res) {
+async function changeUserRole(req, res) {
 	const logCtx = getLogContext(req);
 	const { userId } = req.body;
 
@@ -850,7 +975,7 @@ async function chengeUserRole(req, res) {
 					userId: req.user._id,
 				});
 
-				throw new Error("Only managers can change roles");
+				throw createHttpError(403, "Only managers can change roles");
 			}
 
 			if (group.managerID.toString() === userId) {
@@ -859,7 +984,7 @@ async function chengeUserRole(req, res) {
 					groupId: group._id,
 				});
 
-				throw new Error("You cannot change your own role");
+				throw createHttpError(400, "You cannot change your own role");
 			}
 
 			// 🔹 Get target user
@@ -871,7 +996,7 @@ async function chengeUserRole(req, res) {
 					targetUserId: userId,
 				});
 
-				throw new Error("User not found");
+				throw createHttpError(404, "User not found");
 			}
 
 			// 🔹 Check membership
@@ -889,7 +1014,7 @@ async function chengeUserRole(req, res) {
 					},
 				);
 
-				throw new Error("User is not a group member");
+				throw createHttpError(403, "User is not a group member");
 			}
 
 			// 🔥 Get current manager (old)
@@ -898,7 +1023,7 @@ async function chengeUserRole(req, res) {
 			});
 
 			if (!oldManager) {
-				throw new Error("Current manager not found");
+				throw createHttpError(404, "Current manager not found");
 			}
 
 			logger.debug("Change user role: updating roles", {
@@ -910,9 +1035,13 @@ async function chengeUserRole(req, res) {
 
 			// 🔁 Role switch
 			user.role = "MANAGER";
+			user.roleSelectionCompleted = true;
+			user.canBePromoted = false;
 			await user.save({ session });
 
 			oldManager.role = "USER";
+			oldManager.roleSelectionCompleted = true;
+			oldManager.canBePromoted = false;
 			await oldManager.save({ session });
 
 			// 🔁 Update group
@@ -987,9 +1116,20 @@ async function chengeUserRole(req, res) {
 			error: getErrorMeta(error),
 		});
 
-		return res.status(500).json({
+		const status = Number.isInteger(error?.status) ? error.status : 500;
+		let message = "An error occurred while changing user role";
+
+		if (status === 400) {
+			message = "Invalid role transfer request";
+		} else if (status === 403) {
+			message = "You are not allowed to transfer manager role";
+		} else if (status === 404) {
+			message = "Manager or target user not found";
+		}
+
+		return res.status(status).json({
 			success: false,
-			message: "An error occurred while changing user role",
+			message,
 		});
 	} finally {
 		await session.endSession();
@@ -1007,5 +1147,5 @@ module.exports = {
 	updateGroupTitle,
 	updateGroupPaymentNotice,
 	leaveGroup,
-	chengeUserRole,
+	changeUserRole,
 };
