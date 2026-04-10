@@ -238,49 +238,48 @@ async function createPayment(req, res) {
  * - requires user authentication
  */
 async function createStripeCheckoutSession(req, res) {
-	const logCtx = getLogContext(req);
+const logCtx = getLogContext(req);
 	const parsedAmount = Number(req.body?.amount);
 	const redirectBaseUrl = String(req.body?.redirectBaseUrl || "").trim();
+    // 1. Platform check korun (Request body theke)
+    const isMobile = req.body?.platform === 'mobile'; 
 
-	logger.info("Create Stripe checkout session attempt", {
-		...logCtx,
-		amount: req.body?.amount,
-	});
+	logger.info("Create Stripe checkout session attempt", { ...logCtx, amount: req.body?.amount });
 
 	if (!parsedAmount || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-		return res.status(400).json({
-			success: false,
-			message: "amount must be greater than 0",
-		});
+		return res.status(400).json({ success: false, message: "amount must be greater than 0" });
 	}
 
 	try {
 		const stripe = getStripeClient();
 		const clientBaseUrl = getSafeClientBaseUrl(redirectBaseUrl);
 
+        // 2. Mobile hole custom scheme, nahole normal URL
+        const success_url = isMobile 
+            ? `smartbachelor://success?session_id={CHECKOUT_SESSION_ID}`
+            : `${clientBaseUrl}/dashboard/payment?stripe=success&session_id={CHECKOUT_SESSION_ID}`;
+        
+        const cancel_url = isMobile
+            ? `smartbachelor://cancel`
+            : `${clientBaseUrl}/dashboard/payment?stripe=cancelled`;
+
 		const session = await stripe.checkout.sessions.create({
 			mode: "payment",
 			customer_email: req.user?.email || undefined,
-			line_items: [
-				{
-					price_data: {
-						currency: (
-							envConfig.STRIPE_CURRENCY || "bdt"
-						).toLowerCase(),
-						unit_amount: Math.round(parsedAmount * 100),
-						product_data: {
-							name: "Meal Khata Payment",
-						},
-					},
-					quantity: 1,
-				},
-			],
-			success_url: `${clientBaseUrl}/dashboard/payment?stripe=success&session_id={CHECKOUT_SESSION_ID}`,
-			cancel_url: `${clientBaseUrl}/dashboard/payment?stripe=cancelled`,
+			line_items: [{
+                price_data: {
+                    currency: (envConfig.STRIPE_CURRENCY || "bdt").toLowerCase(),
+                    unit_amount: Math.round(parsedAmount * 100),
+                    product_data: { name: `${isMobile ? 'Meal Khata' : 'SBL'}  Payment` },
+                },
+                quantity: 1,
+            }],
+			success_url: success_url, // Updated
+			cancel_url: cancel_url,   // Updated
 			metadata: {
 				userId: String(req.user._id),
 				userEmail: req.user.email || "",
-				source: "meal-khata",
+				source: ` ${isMobile ? 'Meal Khata' : 'SBL'}  Payment`,
 			},
 		});
 
