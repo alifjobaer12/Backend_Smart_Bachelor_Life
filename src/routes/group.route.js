@@ -1,0 +1,149 @@
+const express = require("express");
+
+const authMiddleware = require("../middlewares/auth.middleware");
+const cacheMiddleware = require("../middlewares/cache.middleware");
+const { authSensitiveLimiter } = require("../middlewares/security.middleware");
+
+const groupController = require("../controllers/group.controller");
+
+const groupRouter = express.Router();
+
+/**
+ * - create a new group
+ * - POST /api/groups
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+groupRouter.post(
+	"/",
+	authSensitiveLimiter,
+	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["group", "expenses", "payment"]),
+	groupController.createGroup,
+);
+
+/**
+ * - send join code to a list of emails
+ * - POST /api/groups/send-join-code
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+groupRouter.post(
+	"/send-join-code",
+	authSensitiveLimiter,
+	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["group"]),
+	groupController.sendJoinCode,
+);
+
+/**
+ * - join a group using a join code
+ * - POST /api/groups/join
+ * - protected route, requires valid Firebase ID token and group membership
+ */
+groupRouter.post(
+	"/join",
+	authSensitiveLimiter,
+	authMiddleware.authUserMiddleware,
+	cacheMiddleware.invalidateCache(["group", "expenses", "payment"]),
+	groupController.joinByJoinCode,
+);
+
+/**
+ * - remove a user from the group by email
+ * - POST /api/groups/remove-user
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+groupRouter.post(
+	"/remove-user",
+	authSensitiveLimiter,
+	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["group", "expenses", "payment"]),
+	groupController.removeUserFromGroup,
+);
+
+/**
+ * - revoke an invited email before joining
+ * - POST /api/groups/revoke-invite
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+groupRouter.post(
+	"/revoke-invite",
+	authSensitiveLimiter,
+	authMiddleware.authManagerMiddleware,
+	groupController.revokeInvite,
+);
+
+/**
+ * - get group details for the manager
+ * - GET /api/groups/details
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+groupRouter.get(
+	"/details",
+	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.getFromCache("group", 120),
+	groupController.getGroupDetails,
+);
+
+/**
+ * - get group details for a member
+ * - GET /api/groups/details/:groupId
+ * - protected route, requires valid Firebase ID token and group membership
+ */
+groupRouter.get(
+	"/details/:groupId",
+	authMiddleware.authUserMiddleware,
+	cacheMiddleware.getFromCache("group", 120),
+	groupController.getGroupDetailsForMember,
+);
+
+/**
+ * - update the group title for the manager
+ * - PATCH /api/groups/title
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+groupRouter.patch(
+	"/title",
+	authSensitiveLimiter,
+	authMiddleware.authManagerMiddleware,
+	groupController.updateGroupTitle,
+);
+
+/**
+ * - update the payment notice for the manager
+ * - PATCH /api/groups/notice
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+groupRouter.patch(
+	"/notice",
+	authSensitiveLimiter,
+	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["group"]),
+	groupController.updateGroupPaymentNotice,
+);
+
+/**
+ * - leave a group as a member
+ * - POST /api/groups/leave
+ * - protected route, requires valid Firebase ID token and group membership
+ */
+groupRouter.post(
+	"/leave",
+	authSensitiveLimiter,
+	authMiddleware.authUserMiddleware,
+	groupController.leaveGroup,
+);
+
+/**
+ * - change the manager role to another user in the group
+ * - POST /api/groups/change-role
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+groupRouter.post(
+	"/change-role",
+	authSensitiveLimiter,
+	authMiddleware.authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["group", "expenses", "payment"]),
+	groupController.changeUserRole,
+);
+
+module.exports = groupRouter;

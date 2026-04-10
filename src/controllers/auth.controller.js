@@ -1,52 +1,112 @@
 const userModel = require("../models/user.model");
+const groupModel = require("../models/group.model");
+const firebaseAdmin = require("../config/firebase.config");
+
+const emailService = require("../services/email.service");
+
+const tokenBlackListModel = require("../models/tokenBlackList.model");
+
+const { logger, getLogContext, getErrorMeta } = require("../utils/logger.util");
 
 /**
  * - user registration controller
  * - POST /api/auth/register
- * - open to public
+ * - requires a valid Firebase ID token
  */
 async function userRegisterController(req, res) {
-	const {
-		firebaseUid,
-		email,
-		displayName,
-		photoURL,
-		role,
-		provider,
-		lastLoginAt,
-	} = req.body;
+	const logCtx = getLogContext(req);
+	const authHeader = req.headers.authorization;
+	const token = authHeader?.startsWith("Bearer ")
+		? authHeader.split(" ")[1]
+		: null;
+	const { displayName, photoURL, provider } = req.body;
 
-	const isExistingUser = await userModel.findOne({
-		$or: [{ firebaseUid }, { email }],
+	logger.info("Auth register attempt", {
+		...logCtx,
+		hasAuthHeader: !!authHeader,
+		provider,
 	});
 
-	if (isExistingUser) {
-		return res.status(422).json({
+	if (!token) {
+		return res.status(400).json({
 			success: false,
-			message:
-				"User with the provided firebaseUid or email already exists",
+			message: "Authorization token is required",
 		});
 	}
 
 	try {
-		// Create a new user document in MongoDB
+		const decoded = await firebaseAdmin.auth().verifyIdToken(token);
+		const firebaseUid = decoded.uid;
+		const email = decoded.email;
+		const lastLoginAt = new Date();
+
+		if (!firebaseUid || !email) {
+			return res.status(400).json({
+				success: false,
+				message: "Firebase token must include uid and email",
+			});
+		}
+
+		const isExistingUser = await userModel.findOne({
+			$or: [{ firebaseUid }, { email }],
+		});
+
+		if (isExistingUser) {
+			logger.warn("Auth register rejected: user already exists", {
+				...logCtx,
+				firebaseUid,
+				email,
+				existingUserId: isExistingUser._id,
+			});
+
+			return res.status(422).json({
+				success: false,
+				message:
+					"User with the provided firebaseUid or email already exists",
+			});
+		}
+
+		// Registration always creates a USER account first.
+		// The frontend can then let the user choose exactly one next step:
+		// self-promote to manager or join by group code.
+
 		const newUser = await userModel.create({
 			firebaseUid,
 			email,
 			displayName,
 			photoURL,
-			role,
 			provider,
 			lastLoginAt,
 		});
 
-		return res.status(201).json({
+		logger.info("Auth register success", {
+			...logCtx,
+			userId: newUser._id,
+			email: newUser.email,
+		});
+
+		res.status(201).json({
 			success: true,
 			message: "User registered successfully",
 			user: newUser,
 		});
+
+		// async email, do not block response
+		emailService
+			.sendRegisreationEmail(email, displayName)
+			.catch((error) => {
+				logger.error("Registration email send failed", {
+					...logCtx,
+					email,
+					error: getErrorMeta(error),
+				});
+			});
 	} catch (error) {
-		console.error("Error registering user:", error);
+		logger.error("Auth register failed", {
+			...logCtx,
+			error: getErrorMeta(error),
+		});
+
 		return res.status(500).json({
 			success: false,
 			message: "An error occurred while registering the user",
@@ -54,6 +114,223 @@ async function userRegisterController(req, res) {
 	}
 }
 
+/**
+ * - manager self-promotion controller
+ * - POST /api/auth/register-manager
+ * - one-time action after registration, requires authenticated user
+ */
+async function managerRegisterController(req, res) {
+	const logCtx = getLogContext(req);
+	const userId = req.user?._id;
+
+	logger.info("Manager self-promotion attempt", {
+		...logCtx,
+		userId,
+	});
+
+	try {
+		const user = await userModel
+			.findById(userId)
+			.select("+role +roleSelectionCompleted +canBePromoted");
+
+		if (!user) {
+			return res.status(404).json({
+				success: false,
+				message: "User not found",
+			});
+		}
+
+		if (!user.canBePromoted || user.roleSelectionCompleted) {
+			return res.status(403).json({
+				success: false,
+				message:
+					"Role choice is already completed. You can only choose manager once after registration.",
+			});
+		}
+
+		user.role = "MANAGER";
+		user.canBePromoted = false;
+		user.roleSelectionCompleted = true;
+		await user.save();
+
+		logger.info("Manager self-promotion success", {
+			...logCtx,
+			userId: user._id,
+			email: user.email,
+		});
+
+		return res.status(200).json({
+			success: true,
+			message: "User promoted to manager successfully",
+			user,
+		});
+	} catch (error) {
+		logger.error("Manager self-promotion failed", {
+			...logCtx,
+			userId,
+			error: getErrorMeta(error),
+		});
+
+		return res.status(500).json({
+			success: false,
+			message: "An error occurred while promoting the user to manager",
+		});
+	}
+}
+
+/**
+ * - user login controller
+ * - POST /api/auth/login
+ * - protected route, requires valid Firebase ID token
+ */
+async function userLoginController(req, res) {
+	const logCtx = getLogContext(req);
+	const email = req.user?.email;
+	const uid = req.user?.firebaseUid;
+
+	logger.info("Auth login attempt", { ...logCtx });
+
+	if (!email) {
+		logger.warn("Auth login rejected: missing email in token", {
+			...logCtx,
+		});
+		return res.status(400).json({
+			success: false,
+			message: "Email is missing for login",
+		});
+	}
+
+	try {
+		const user = await userModel
+			.findOne({
+				$or: [{ firebaseUid: uid }, { email }],
+			})
+			.select("+role +roleSelectionCompleted +canBePromoted");
+
+		if (!user) {
+			logger.warn("Auth login rejected: user not found", {
+				...logCtx,
+				email,
+				uid,
+			});
+			return res.status(404).json({
+				success: false,
+				message: "User not found",
+			});
+		}
+
+		user.lastLoginAt = new Date();
+		await user.save();
+
+		const group = await groupModel
+			.findOne({
+				$or: [{ managerID: user._id }, { userIDs: user._id }],
+			})
+			.populate("managerID", "email displayName")
+			.populate("userIDs", "email displayName");
+
+		const currentGroup = group
+			? {
+					id: group._id,
+					title: group.title,
+					address: group.address,
+					joinCode: group.joinCode,
+					paymentNotice: group.paymentNotice || "",
+					memberCount: (group.userIDs?.length || 0) + 1,
+					manager: group.managerID,
+				}
+			: null;
+
+		logger.info("Auth login success", {
+			...logCtx,
+			userId: user._id,
+			email: user.email,
+		});
+
+		return res.status(200).json({
+			success: true,
+			message: "User logged in successfully",
+			user,
+			currentGroup,
+		});
+	} catch (error) {
+		logger.error("Auth login failed", {
+			...logCtx,
+			email,
+			uid,
+			error: getErrorMeta(error),
+		});
+
+		return res.status(500).json({
+			success: false,
+			message: "An error occurred while logging in the user",
+		});
+	}
+}
+
+/**
+ * - user logout controller
+ * - POST /api/auth/logout
+ * - protected route, requires valid Firebase ID token
+ * - blacklists the token to prevent further use
+ */
+async function userLogoutController(req, res) {
+	const logCtx = getLogContext(req);
+	const authHeader = req.headers.authorization;
+	const token = authHeader?.startsWith("Bearer ")
+		? authHeader.split(" ")[1]
+		: null;
+
+	logger.info("Auth logout attempt", { ...logCtx });
+
+	if (!token) {
+		logger.warn("Auth logout skipped: no bearer token", { ...logCtx });
+		return res.status(400).json({
+			success: false,
+			message: "Already logged out",
+		});
+	}
+
+	try {
+		await tokenBlackListModel.create({ token });
+
+		logger.info("Auth logout success", {
+			...logCtx,
+			tokenPresent: true,
+		});
+
+		return res.status(200).json({
+			success: true,
+			message: "User logged out successfully",
+		});
+	} catch (error) {
+		// Handle duplicate token blacklist insertion (if unique index exists)
+		if (error?.code === 11000) {
+			logger.warn("Auth logout duplicate blacklist entry", {
+				...logCtx,
+				error: getErrorMeta(error),
+			});
+			return res.status(200).json({
+				success: true,
+				message: "User logged out successfully",
+			});
+		}
+
+		logger.error("Auth logout failed", {
+			...logCtx,
+			error: getErrorMeta(error),
+		});
+
+		return res.status(500).json({
+			success: false,
+			message: "An error occurred while logging out the user",
+		});
+	}
+}
+
 module.exports = {
 	userRegisterController,
+	userLoginController,
+	userLogoutController,
+	managerRegisterController,
 };

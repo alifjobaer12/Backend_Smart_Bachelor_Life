@@ -44,6 +44,16 @@ const userSchema = new mongoose.Schema(
 			select: false,
 			default: "USER",
 		},
+		roleSelectionCompleted: {
+			type: Boolean,
+			select: false,
+			default: false,
+		},
+		canBePromoted: {
+			type: Boolean,
+			select: false,
+			default: true,
+		},
 		provider: {
 			type: String,
 			trim: true,
@@ -63,6 +73,8 @@ const userSchema = new mongoose.Schema(
 		timestamps: true,
 	},
 );
+
+userSchema.index({ firebaseUid: 1, email: 1 });
 
 const userModel = mongoose.model("user", userSchema);
 

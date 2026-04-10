@@ -1,0 +1,77 @@
+const express = require("express");
+
+const {
+	createBazar,
+	getBazar,
+	updateBazar,
+	deleteBazar,
+} = require("../controllers/bazar.controller");
+
+const {
+	authUserMiddleware,
+	authManagerMiddleware,
+} = require("../middlewares/auth.middleware");
+const cacheMiddleware = require("../middlewares/cache.middleware");
+const upload = require("../middlewares/fileUpload.middleware");
+const { authSensitiveLimiter } = require("../middlewares/security.middleware");
+
+const bazarRouter = express.Router();
+
+// Create (manager)
+/**
+ * - create a new bazar item
+ * - POST /api/bazar
+ * - protected route, requires valid Firebase ID token and group manager role
+ * - expects multipart/form-data with field: file
+ */
+bazarRouter.post(
+	"/",
+	authSensitiveLimiter,
+	authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["bazar"]),
+	upload.uploadSingleFile("file"),
+	createBazar,
+);
+
+// Read (all users)
+/**
+ * - get bazar items
+ * - GET /api/bazar
+ * - protected route, requires valid Firebase ID token
+ */
+bazarRouter.get(
+	"/",
+	authUserMiddleware,
+	cacheMiddleware.getFromCache("bazar", 120),
+	getBazar,
+);
+
+// Update (manager)
+/**
+ * - update a bazar item
+ * - PATCH /api/bazar/:id
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+bazarRouter.patch(
+	"/:id",
+	authSensitiveLimiter,
+	authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["bazar"]),
+	updateBazar,
+);
+
+// Delete (manager)
+/**
+ * - delete a bazar item
+ * - DELETE /api/bazar/:id
+ * - protected route, requires valid Firebase ID token and group manager role
+ */
+bazarRouter.delete(
+	"/:id",
+	authSensitiveLimiter,
+	authManagerMiddleware,
+	cacheMiddleware.invalidateCache(["bazar"]),
+	deleteBazar,
+);
+
+module.exports = bazarRouter;

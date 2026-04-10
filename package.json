@@ -1,22 +1,36 @@
 {
-  "name": "smart-bachelor-life-server",
-  "version": "1.0.0",
-  "description": "",
-  "main": "server.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js",
-    "dev": "npx nodemon server.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "cors": "^2.8.6",
-    "dotenv": "^17.3.1",
-    "express": "^5.2.1",
-    "mongoose": "^9.2.3",
-    "redis": "^5.11.0"
-  }
+	"name": "smart-bachelor-life-server",
+	"version": "1.0.0",
+	"description": "",
+	"main": "server.js",
+	"scripts": {
+		"test": "node --test __tests__/*.test.js",
+		"start": "node server.js",
+		"dev": "npx nodemon server.js"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"type": "commonjs",
+	"engines": {
+		"node": ">=20"
+	},
+	"dependencies": {
+		"@imagekit/nodejs": "^7.3.0",
+		"@sendgrid/mail": "^8.1.6",
+		"cors": "^2.8.6",
+		"dotenv": "^17.3.1",
+		"express-rate-limit": "^8.3.2",
+		"express": "^5.2.1",
+		"firebase-admin": "^13.7.0",
+		"helmet": "^8.1.0",
+		"mongoose": "^9.2.3",
+		"multer": "^2.1.1",
+		"redis": "^5.11.0",
+		"stripe": "^22.0.0",
+		"swagger-jsdoc": "^6.2.8",
+		"swagger-ui-express": "^5.0.1",
+		"winston": "^3.19.0",
+		"winston-daily-rotate-file": "^5.0.0"
+	}
 }
