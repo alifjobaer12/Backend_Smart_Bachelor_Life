@@ -128,7 +128,7 @@ async function createPayment(req, res) {
 		amount === undefined ||
 		amount === null ||
 		Number.isNaN(parsedAmount) ||
-		parsedAmount < 0 ||
+		parsedAmount < 0.01 ||
 		!normalizedPaymentMethod ||
 		(!isStripePayment &&
 			(!normalizedTransactionID ||
@@ -143,10 +143,10 @@ async function createPayment(req, res) {
 		});
 
 		const requirementMessage = isStripePayment
-			? "amount and paymentMethod are required"
+			? "amount and paymentMethod are required. Amount must be at least 0.01"
 			: isSenderNumberRequired
-				? "amount, paymentMethod, senderNumber and transactionID are required"
-				: "amount, paymentMethod and transactionID are required";
+				? "amount, paymentMethod, senderNumber and transactionID are required. Amount must be at least 0.01"
+				: "amount, paymentMethod and transactionID are required. Amount must be at least 0.01";
 
 		return res.status(400).json({
 			success: false,
@@ -238,49 +238,48 @@ async function createPayment(req, res) {
  * - requires user authentication
  */
 async function createStripeCheckoutSession(req, res) {
-	const logCtx = getLogContext(req);
+const logCtx = getLogContext(req);
 	const parsedAmount = Number(req.body?.amount);
 	const redirectBaseUrl = String(req.body?.redirectBaseUrl || "").trim();
+    // 1. Platform check korun (Request body theke)
+    const isMobile = req.body?.platform === 'mobile'; 
 
-	logger.info("Create Stripe checkout session attempt", {
-		...logCtx,
-		amount: req.body?.amount,
-	});
+	logger.info("Create Stripe checkout session attempt", { ...logCtx, amount: req.body?.amount });
 
 	if (!parsedAmount || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-		return res.status(400).json({
-			success: false,
-			message: "amount must be greater than 0",
-		});
+		return res.status(400).json({ success: false, message: "amount must be greater than 0" });
 	}
 
 	try {
 		const stripe = getStripeClient();
 		const clientBaseUrl = getSafeClientBaseUrl(redirectBaseUrl);
 
+        // 2. Mobile hole custom scheme, nahole normal URL
+        const success_url = isMobile 
+            ? `smartbachelor://success?session_id={CHECKOUT_SESSION_ID}`
+            : `${clientBaseUrl}/dashboard/payment?stripe=success&session_id={CHECKOUT_SESSION_ID}`;
+        
+        const cancel_url = isMobile
+            ? `smartbachelor://cancel`
+            : `${clientBaseUrl}/dashboard/payment?stripe=cancelled`;
+
 		const session = await stripe.checkout.sessions.create({
 			mode: "payment",
 			customer_email: req.user?.email || undefined,
-			line_items: [
-				{
-					price_data: {
-						currency: (
-							envConfig.STRIPE_CURRENCY || "bdt"
-						).toLowerCase(),
-						unit_amount: Math.round(parsedAmount * 100),
-						product_data: {
-							name: "Meal Khata Payment",
-						},
-					},
-					quantity: 1,
-				},
-			],
-			success_url: `${clientBaseUrl}/dashboard/payment?stripe=success&session_id={CHECKOUT_SESSION_ID}`,
-			cancel_url: `${clientBaseUrl}/dashboard/payment?stripe=cancelled`,
+			line_items: [{
+                price_data: {
+                    currency: (envConfig.STRIPE_CURRENCY || "bdt").toLowerCase(),
+                    unit_amount: Math.round(parsedAmount * 100),
+                    product_data: { name: `${isMobile ? 'Meal Khata' : 'SBL'}  Payment` },
+                },
+                quantity: 1,
+            }],
+			success_url: success_url, // Updated
+			cancel_url: cancel_url,   // Updated
 			metadata: {
 				userId: String(req.user._id),
 				userEmail: req.user.email || "",
-				source: "meal-khata",
+				source: ` ${isMobile ? 'Meal Khata' : 'SBL'}  Payment`,
 			},
 		});
 
@@ -491,6 +490,20 @@ async function confirmPayment(req, res) {
 			});
 		}
 
+		if (payment.status !== "PENDING") {
+			logger.warn("Confirm payment failed: invalid state transition", {
+				...logCtx,
+				paymentID,
+				currentStatus: payment.status,
+				attemptedStatus: "COMPLETED",
+			});
+
+			return res.status(400).json({
+				success: false,
+				message: `Cannot confirm payment with status ${payment.status}. Only PENDING payments can be confirmed.`,
+			});
+		}
+
 		payment.status = "COMPLETED";
 		await payment.save();
 
@@ -587,6 +600,20 @@ async function rejectPayment(req, res) {
 			return res.status(403).json({
 				success: false,
 				message: "User is not authorized to reject this payment",
+			});
+		}
+
+		if (payment.status !== "PENDING") {
+			logger.warn("Reject payment failed: invalid state transition", {
+				...logCtx,
+				paymentID,
+				currentStatus: payment.status,
+				attemptedStatus: "FAILED",
+			});
+
+			return res.status(400).json({
+				success: false,
+				message: `Cannot reject payment with status ${payment.status}. Only PENDING payments can be rejected.`,
 			});
 		}
 
